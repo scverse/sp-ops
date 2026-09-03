@@ -5,7 +5,7 @@ from datetime import datetime
 project = "sp-ops"
 author = "scverse"
 copyright = f"{datetime.now():%Y}, {author}"
-release = "0.1.0-draft"
+release = "0.2.0-draft"
 version = release
 
 extensions = [
