@@ -4,7 +4,7 @@
 
 Status: phase 0 of [PLAN.md](PLAN.md). The package installs, registers a napari reader for `.zarr` paths, and hands every group to napari-ome-zarr unchanged. sp-ops behaviour arrives in the later phases.
 
-`napari-sp-ops` is a napari reader plugin for sp-ops stores, the SpatialData layout for optical pooled screening described in this repository's `docs/`. It depends on [napari-ome-zarr](https://github.com/ome/napari-ome-zarr) and adds what an sp-ops store needs on top of it: traversal of OME-NGFF RFC-8 collections, RFC-8 labels, channel names and colormaps from `sp-ops:channels`, a `round` slider for raw tiles, and tile placement from the `layout` shapes.
+`napari-sp-ops` is a napari reader plugin for sp-ops stores, the SpatialData layout for optical pooled screening described in this repository's `docs/`. It depends on [napari-ome-zarr](https://github.com/ome/napari-ome-zarr) and is meant to add what an sp-ops store needs on top of it: traversal of OME-NGFF RFC-8 collections, RFC-8 labels, channel names and colormaps from `sp-ops:channels`, a `round` slider for raw tiles, and tile placement from the `layout` shapes.
 
 ## Install
 
@@ -29,7 +29,7 @@ napari-ome-zarr and napari-sp-ops both accept `.zarr` directories, so napari ask
 napari --plugin napari-sp-ops path/to/screen.zarr
 ```
 
-Anything napari-ome-zarr can open still opens through this plugin, because the group is passed to it unchanged. In phase 0 that means a multiscale image opens, and a collection such as a screen, plate, well or merged node fails with napari's "returned no data" error, exactly as it does with napari-ome-zarr alone. Phase 2 adds the collections.
+Anything napari-ome-zarr can open still opens through this plugin, because the group is passed to it unchanged. In phase 0 that means a multiscale image opens, and a collection such as a screen, plate, well or merged node fails with the "returned no data" error from napari's plugin loader, exactly as it does with napari-ome-zarr alone. Phase 2 adds the collections.
 
 ## Tests
 
