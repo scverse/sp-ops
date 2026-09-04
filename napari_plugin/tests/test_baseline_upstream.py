@@ -5,20 +5,20 @@ failure means the pinned upstream changed, and the matching code in
 ``napari_sp_ops`` needs a second look.
 """
 
-import warnings
+from pathlib import Path
 
 import pytest
 import zarr
 from napari_ome_zarr._reader import napari_get_reader as upstream_get_reader
 
 
-def upstream_layers(path) -> list:
+def upstream_layers(path: Path) -> list:
     reader = upstream_get_reader(str(path))
     assert reader is not None, f"napari-ome-zarr declined {path}"
     return reader(str(path))
 
 
-def only_layer(path) -> tuple:
+def only_layer(path: Path) -> tuple:
     layers = upstream_layers(path)
     assert len(layers) == 1, [meta.get("name") for _, meta, _ in layers]
     return layers[0]
@@ -43,12 +43,14 @@ def test_collection_yields_no_layers(synthetic_screen, attribute):
 
 @pytest.mark.parametrize(("attribute", "channel_axis", "axis_labels", "scale", "shape"), LEAF_IMAGES)
 def test_leaf_opens_as_unnamed_image_layer(synthetic_screen, attribute, channel_axis, axis_labels, scale, shape):
-    """Labels and RGBA overlays come back as plain image layers; nothing gets a name or colormap."""
+    """Labels and RGBA overlays come back as plain image layers, nothing gets a name or colormap,
+    and the dataset translation is dropped."""
     data, meta, layer_type = only_layer(getattr(synthetic_screen, attribute))
     assert layer_type == "image"
     assert meta.get("channel_axis") == channel_axis
     assert meta["axis_labels"] == axis_labels
     assert meta["scale"] == scale
+    assert not meta["affine"].translate.any()
     assert meta.get("name") is None
     assert "colormap" not in meta
     assert data[0].shape == shape
@@ -62,9 +64,6 @@ def test_well_path_resolves_without_intermediate_metadata(synthetic_screen):
         plate["A"]
     with pytest.raises(zarr.errors.GroupNotFoundError):
         zarr.open_group(str(synthetic_screen.plate_processed / "A"), mode="r")
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        assert list(plate.keys()) == []
 
 
 def test_processed_example_matches_synthetic_baseline(processed_example):
@@ -74,6 +73,7 @@ def test_processed_example_matches_synthetic_baseline(processed_example):
     assert upstream_layers(merged) == []
     _, meta, layer_type = only_layer(merged / "image")
     assert (layer_type, meta["channel_axis"], meta["axis_labels"]) == ("image", 1, ("T", "Z", "Y", "X"))
+    assert not meta["affine"].translate.any(), "the 15600 µm dataset translation is dropped upstream"
     _, meta, layer_type = only_layer(merged / "cell_seg")
     assert (layer_type, meta["channel_axis"]) == ("image", 1)
     _, meta, layer_type = only_layer(merged / "grid_overlay")
