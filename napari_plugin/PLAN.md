@@ -1,14 +1,12 @@
 # napari plugin for sp-ops stores
 
-Status: plan, nothing implemented. Written 2026-09-04 against napari-ome-zarr 0.10.0, napari 0.9.0, zarr 3.1.6 and the sp-ops specification at commit 362486d.
+Status: phase 0 implemented (PR #4). Written 2026-09-04 against napari-ome-zarr 0.10.0, napari 0.9.0 and the sp-ops specification at commit 362486d. The failure table was first measured on zarr 3.1.6 under Python 3.11 and is re-checked by the phase 0 baseline test on zarr 3.3.0 under Python 3.12.
 
 ## Summary
 
 Build `napari-sp-ops`, a small napari reader plugin that depends on napari-ome-zarr and adds the five things an sp-ops store needs and napari-ome-zarr lacks. Those are traversal of OME-NGFF RFC-8 collections, detection of RFC-8 labels, layer names and colormaps from `sp-ops:channels`, a `round` slider for raw multi-round tiles, and tile placement from the `layout` shapes. Everything generic about RFC-8 is written in one module so it can be offered upstream to napari-ome-zarr and deleted here once released.
 
 The plugin is a superset reader. When the dropped path is not inside an sp-ops store, it hands the group to napari-ome-zarr unchanged. A user can therefore make `napari-sp-ops` the default reader for `.zarr` without losing anything.
-
-Estimated effort is about six working days for phases 0 to 3, plus the upstream pull requests in phase 4, which depend on the napari-ome-zarr maintainers.
 
 ## What breaks today
 
@@ -67,7 +65,7 @@ Colormaps by role. `nuclear` is blue. `base` takes a fixed four-entry palette by
 
 D1. A separate package that depends on napari-ome-zarr, not a fork and not a pull-request-only effort. The released 0.10.0 already has the zarr v3 architecture and the dependency set (`napari>=0.6`, `zarr>=3.1.5`) this plan builds on. sp-ops semantics would never be accepted upstream, and RFC-8 is still a draft, so the generic parts also need a home while they wait. Rejected: forking, because two readers for the same metadata drift apart.
 
-D2. Superset reader with delegation. Both plugins register `*.zarr` with `accepts_directories`, so napari asks the user to choose a reader on every drop and offers to remember the choice for the extension. Delegating non-sp-ops groups to `read_ome_zarr` makes remembering `napari-sp-ops` safe. The README documents `--plugin napari-sp-ops` and the preference setting.
+D2. Superset reader with delegation. Both plugins accept `.zarr` directories, so napari asks the user to choose a reader when a store is dropped. For directories napari remembers that choice per folder, not per extension, so every node dropped from the same store asks again. The way out is the `plugins.extension2reader` preference with the pattern `*.zarr*` assigned to `napari-sp-ops`, or the `--plugin` flag. Delegating non-sp-ops groups to `read_ome_zarr` makes that preference safe. The README documents both.
 
 D3. Detection walks up. A path is inside an sp-ops store when the group itself, or any ancestor up to the store root, carries an `sp-ops:*` key under `ome.attributes` or has `ome.type` equal to `collection`. The walk is bounded at twelve levels, which exceeds the deepest layout in the specification. For URLs the walk shortens the URL path. Phase 0 confirms that zarr-python 3 opens `plate/A/1` when `plate/A` has no `zarr.json`, because the example stores nest the well name `A/1` as two directories with metadata only on the second.
 
@@ -118,20 +116,22 @@ Each module stays under about 300 lines. Settings (layer budget, stage preferenc
 
 ## Phases
 
-Phase 0, scaffold and baseline, about half a day. Create the package, the uv environment on Python 3.12 with `pyqt6` as an optional extra, and a reader that only delegates to napari-ome-zarr. Turn the probe behind the table above into `test_baseline_upstream.py`, so the failure modes are recorded in the repository and any change in upstream behaviour fails a test. Confirm the implicit-group question in D3. Acceptance: the plugin installs, napari lists it, and every baseline assertion passes.
+Each phase lands as its own pull request, and the requests form a stack. The branch for a phase is cut from the branch of the phase before it, and its pull request targets that branch until the parent merges, after which it is retargeted to `main`. Phase 0 is the base of the stack and targets `main` directly.
 
-Phase 1, leaf images, one to two days. Implement the `ome.attributes` lookup, RFC-8 labels detection, `sp-ops:channels` names and colormaps, the singleton squeeze, and RGBA detection. Acceptance on the processed example: `merged/image` opens as six named layers with colormaps and no length-one sliders; `cell_seg` opens as a hidden labels layer at 0.65 µm; `grid_overlay` opens as one RGB layer. On the raw example: a channel multiscale opens with its channel name. On the synthetic store: an image with axes round,c,y,x opens with a slider labelled `round`.
+Phase 0, scaffold and baseline. Create the package, the uv environment on Python 3.12 with `pyqt6` as an optional extra, and a reader that only delegates to napari-ome-zarr. Turn the probe behind the table above into `test_baseline_upstream.py`, so the failure modes are recorded in the repository and any change in upstream behaviour fails a test. Confirm the implicit-group question in D3. Acceptance: the plugin installs, napari lists it, and every baseline assertion passes.
 
-Phase 2, collections, two to three days. Implement `Collection` traversal, the per-kind rules in the mapping table, round stacking, layout placement, the layout shapes layer, and points. Acceptance on the raw example: dropping a tile gives five layers with an eleven-step `round` slider; dropping `tiles` gives both tiles side by side at 1.3 µm with the layout polygons over them; dropping the well adds the phenotyping tiles inside the ISS footprint at 0.325 µm. On the processed example: dropping `merged` gives the image, twelve hidden labels layers, and the two overlays; dropping the screen root gives the same via the stage rule. In both, the layer budget stops recursion with a logged list.
+Phase 1, leaf images. Implement the `ome.attributes` lookup, RFC-8 labels detection, `sp-ops:channels` names and colormaps, the singleton squeeze, and RGBA detection. Acceptance on the processed example: `merged/image` opens as six named layers with colormaps and no length-one sliders; `cell_seg` opens as a hidden labels layer at 0.65 µm; `grid_overlay` opens as one RGB layer. On the raw example: a channel multiscale opens with its channel name. On the synthetic store: an image with axes round,c,y,x opens with a slider labelled `round`.
 
-Phase 3, navigation and features, two to three days. A dock widget shows the store as a tree (stage, plate, well, modality, tiles or merged, tile, round) with checkboxes and an add button, so a user opens one well of a plate without re-dropping. When a merged collection has a computed edge from a labels element to a table on `value` and `label`, the table's `obs` columns become the labels layer's `features`. Contrast limits come from the lowest pyramid level. Opening by HTTP or S3 URL is exercised against one example store served locally.
+Phase 2, collections. Implement `Collection` traversal, the per-kind rules in the mapping table, round stacking, layout placement, the layout shapes layer, and points. Acceptance on the raw example: dropping a tile gives five layers with an eleven-step `round` slider; dropping `tiles` gives both tiles side by side at 1.3 µm with the layout polygons over them; dropping the well adds the phenotyping tiles inside the ISS footprint at 0.325 µm. On the processed example: dropping `merged` gives the image, twelve hidden labels layers, and the two overlays; dropping the screen root gives the same via the stage rule. In both, the layer budget stops recursion with a logged list.
+
+Phase 3, navigation and features. A dock widget shows the store as a tree (stage, plate, well, modality, tiles or merged, tile, round) with checkboxes and an add button, so a user opens one well of a plate without re-dropping. When a merged collection has a computed edge from a labels element to a table on `value` and `label`, the table's `obs` columns become the labels layer's `features`. Contrast limits come from the lowest pyramid level. Opening by HTTP or S3 URL is exercised against one example store served locally.
 
 Phase 4, upstream, ongoing. Open the three pull requests listed above against napari-ome-zarr, each with the corresponding synthetic-store test. Track them in the README. Delete local code as releases land.
 
 ## Risks and open questions
 
 - napari-ome-zarr internals may change again. The module was rewritten off ome-zarr-py in 2026, and the pin in D10 plus the baseline test are the mitigation. If the import surface breaks, `upstream.py` is the only file to fix.
-- The reader-choice dialog will annoy users until they set a preference. There is no way for one plugin to claim precedence in the manifest, so documentation is the only fix.
+- The reader-choice dialog returns for every node of a store until the user sets the `*.zarr*` pattern preference. A manifest cannot claim precedence, so documentation is the only fix.
 - The `round` axis type `array` and the axis name `round` have not been seen by napari-ome-zarr's tests. Phase 1 checks them on the synthetic store first.
 - Tile placement from `layout` depends on the field-centre assumption noted in the raw conformance report and on there being no rotation. A `scene` written by the processing pipeline supersedes it.
 - Well names such as `A/1` are hierarchical paths, two zarr groups with metadata on the second. The reader follows `path` and never parses names, so it needs no special case beyond the implicit-group check in D3.
