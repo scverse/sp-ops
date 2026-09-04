@@ -28,18 +28,18 @@ import numpy as np
 import spatialdata as sd
 from spatialdata.models import Image2DModel
 
-OPS_DIR = Path("/Users/macbook/ssd/biodata/ops/spops_conformant")
+OPS_DIR = Path("/Users/rushin.gindra/Documents/Research/OPS-sandbox/stores/biohub_example")
 
 
 def main() -> None:
     # --- RFC-8 reader: two real conformant stores ---
     # --- repr: nested, truncated tree instead of a flat dump of all elements ---
-    p001 = sd.read_zarr(OPS_DIR / "P001_spops.zarr")
-    print(f"P001_spops.zarr (raw):        {len(p001._elements)} elements")
-    print(p001)
+    # p001 = sd.read_zarr(OPS_DIR / "P001_spops.zarr")
+    # print(f"P001_spops.zarr (raw):        {len(p001._elements)} elements")
+    # print(p001)
 
-    biohub = sd.read_zarr(OPS_DIR / "Biohub_OPS0001_spops.zarr")
-    print(f"Biohub_OPS0001_spops.zarr:    {len(biohub._elements)} elements")
+    biohub = sd.read_zarr(OPS_DIR / "biohub_example.zarr")
+    print(f"biohub_example.zarr:    {len(biohub._elements)} elements")
     print(biohub)
 
     # --- relationships: sp-ops:relationships resolved from the Biohub store ---
