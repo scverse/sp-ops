@@ -28,6 +28,7 @@ YX = [
 ]
 ZYX = [{"name": "z", "type": "space", "unit": "micrometer"}, *YX]
 YXC = [*YX, {"name": "c", "type": "channel"}]
+ROUND_CYX = [{"name": "round", "type": "array"}, {"name": "c", "type": "channel"}, *YX]
 TCZYX_LOWER = [{**axis, "name": axis["name"].lower()} for axis in TCZYX]
 
 
@@ -85,6 +86,7 @@ class SyntheticScreen:
     image: Path
     labels: Path
     overlay: Path
+    iss_image: Path
     plate_raw: Path
     raw_tiles: Path
     raw_tile: Path
@@ -106,7 +108,8 @@ def _processed_plate(plate: Path) -> None:
         },
     )
     well = plate / "A" / "1"
-    write_collection(well, "A/1", [node("collection", "pheno")], well_attrs)
+    write_collection(well, "A/1", [node("collection", "iss"), node("collection", "pheno")], well_attrs)
+    _processed_iss(well / "iss")
     modality = well / "pheno"
     write_collection(modality, "pheno", [node("collection", "merged")], {"sp-ops:modality": "pheno", "acquisition": {"id": "pheno"}})
     merged = modality / "merged"
@@ -148,6 +151,34 @@ def _processed_plate(plate: Path) -> None:
         {"labels": {"source": [{"id": "pheno-merged-image"}]}, "sp-ops:label_kind": "overlay"},
         "well",
     )
+
+
+def _processed_iss(modality: Path) -> None:
+    """A registered multi-round ISS image with axes round, c, y, x."""
+    write_collection(modality, "iss", [node("collection", "merged")], {"sp-ops:modality": "iss"})
+    merged = modality / "merged"
+    write_collection(merged, "merged", [node("multiscale", "image", node_id="iss-merged-image")], {"sp-ops:merged": {"source": []}})
+    rng = np.random.default_rng(2)
+    write_multiscale(
+        merged / "image",
+        rng.integers(0, 4000, (2, 2, 16, 16), dtype=np.uint16),
+        ROUND_CYX,
+        [1.0, 1.0, 1.3, 1.3],
+        {
+            "sp-ops:channels": [{"name": "DAPI", "role": "nuclear"}, {"name": "A", "role": "base"}],
+            "sp-ops:rounds": [{"index": 0, "acquisition": {"id": "iss-c1"}}, {"index": 1, "acquisition": {"id": "iss-c2"}}],
+        },
+        "well",
+    )
+
+
+def write_plain_multiscale(group_dir: Path, array: np.ndarray, axes: list[dict], scale: list[float]) -> None:
+    """An OME-NGFF 0.5 image with no RFC-8 type and no sp-ops keys."""
+    group_dir.mkdir(parents=True, exist_ok=True)
+    zarr.create_array(store=str(group_dir / "0"), data=array, chunks=array.shape)
+    multiscales = [{"axes": axes, "datasets": [{"path": "0", "coordinateTransformations": [{"type": "scale", "scale": scale}]}]}]
+    payload = {"zarr_format": 3, "node_type": "group", "attributes": {"ome": {"version": "0.5", "multiscales": multiscales}}}
+    (group_dir / "zarr.json").write_text(json.dumps(payload, indent=2))
 
 
 def _raw_plate(plate: Path) -> None:
@@ -215,6 +246,7 @@ def build_synthetic_screen(root: Path) -> SyntheticScreen:
         image=merged / "image",
         labels=merged / "cells",
         overlay=merged / "overlay",
+        iss_image=plate_processed / "A" / "1" / "iss" / "merged" / "image",
         plate_raw=plate_raw,
         raw_tiles=raw_tile.parent,
         raw_tile=raw_tile,

@@ -1,6 +1,6 @@
 # napari plugin for sp-ops stores
 
-Status: phase 0 implemented (PR #4). Written 2026-09-04 against napari-ome-zarr 0.10.0, napari 0.9.0 and the sp-ops specification at commit 362486d. The failure table was first measured on zarr 3.1.6 under Python 3.11 and is re-checked by the phase 0 baseline test on zarr 3.3.0 under Python 3.12.
+Status: phase 1 implemented (PR #4 for phase 0, stacked PR for phase 1). Written 2026-09-04 against napari-ome-zarr 0.10.0, napari 0.9.0 and the sp-ops specification at commit 362486d. The failure table was first measured on zarr 3.1.6 under Python 3.11 and is re-checked by the phase 0 baseline test on zarr 3.3.0 under Python 3.12.
 
 ## Summary
 
@@ -84,6 +84,14 @@ D9. Tests do not depend on ome-zarr-py. napari-ome-zarr's own tests write fixtur
 D10. The public surface of napari-ome-zarr that this plugin imports is not declared public. The pin is `napari-ome-zarr>=0.10,<0.11`, every import from it goes through one adapter module, and the baseline test in phase 0 detects behaviour changes on upgrade.
 
 D11. The plugin reads on-disk paths and URLs only. It does not accept a `SpatialData` object, and it will not until the hierarchical SpatialData reader is released. At that point the question of whether this plugin or napari-spatialdata should take a `SpatialData` object is reopened as its own decision. Until then napari-spatialdata is untouched and this plugin stays the pixel reader.
+
+D12. RGBA detection wins over the RFC-8 `labels` key. A multiscale whose last axis is a channel axis of length three or four with `uint8` data opens as one RGB image layer, whatever else its attributes say. The example store's overlays carry `labels.source` because they were derived from the image, and `sp-ops:label_kind` is only a hint, so the array shape is the reliable signal.
+
+D13. The reader composes every `coordinateTransformations` entry of the full-resolution dataset, in order, and squeezes singleton non-`y`,`x` axes out of the data and the transforms before composing. napari receives `scale` and `translate`; rotation or shear in a dataset transform is dropped with a warning until the `scene` work in phase 2 needs it.
+
+D14. Detection opens the dropped group, then up to twelve ancestors by shortening the path string, and claims the path when any of them is an RFC-8 collection or carries an `sp-ops:*` key under `ome.attributes`. Ancestors that fail to open are skipped, not treated as the top, because `plate/A` has no metadata.
+
+D15. Colormap palette. `nuclear` is `blue`; `base` cycles `green`, `red`, `magenta`, `cyan` in array order; `stain` alternates `green` and `magenta`; everything else, and any channel whose `channel_type` is `labelfree` or `predicted`, is `gray`. The table is the four constants at the top of `channels.py`.
 
 ## Package layout
 
