@@ -14,6 +14,8 @@ open docs/_build/html/index.html
 
 `uv run sphinx-autobuild docs docs/_build/html` serves a live-reloading copy while editing.
 
+A napari reader plugin for these stores is being built in `napari_plugin/`. See `napari_plugin/README.md` for install and status.
+
 ## Examples
 
 The spec's `raw`/`processed` reference stores are runnable against an experimental
