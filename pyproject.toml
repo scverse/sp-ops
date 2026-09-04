@@ -3,11 +3,30 @@ name = "sp-ops"
 version = "0.1.0"
 description = "SpatialData specification for optical pooled screening (OPS) data"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = { file = "LICENSE" }
 dependencies = []
 
 [dependency-groups]
+convert = [
+    # ome-zarr-py >=0.19 is the first line that requires zarr>=3, i.e. the first
+    # that can write into the Zarr v3 stores this specification uses. It needs
+    # Python >=3.12, which is why requires-python moved.
+    "ome-zarr>=0.19.1",
+    "zarr>=3",
+    # NOT below 2026.3.0: ome_zarr/__init__.py gates USE_DASK_ARRAY_KWARGS on it,
+    # and writer.py drops `shards` from the array kwargs without warning when the
+    # gate is false, silently unsharding every store.
+    "dask>=2026.3.0",
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "anndata",
+    "geopandas",
+    "shapely",
+    "tifffile",
+    "scikit-image",
+]
 docs = [
     "sphinx>=8.1",
     "sphinx-book-theme>=1.1",
