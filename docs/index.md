@@ -1,5 +1,9 @@
 # sp-ops: a SpatialData specification for optical pooled screening data
 
+```{note}
+This is an experiment built during the [scverse cellpainting hackathon](https://github.com/scverse/2026_08_hackathon_cellpainting) in Berlin Buch, 2026. The content is manually designed, with AI used for formatting over several rounds of iteration. It is not ready for production and is intended for discussion and experimentation.
+```
+
 This specification lays out one optical pooled screening (OPS) screen as one OME-Zarr store that opens as one hierarchical [SpatialData](https://github.com/scverse/spatialdata) object. A screen holds plate collections, one per physical plate and processing stage. Each covers in situ sequencing (ISS) rounds and phenotyping rounds over the wells of the plate, imaged as tiles and stitched into a merged well image, together with the labels, points, and tables that link pixels to perturbations.
 
 The store is described with [RFC-8](https://ngff.openmicroscopy.org/rfc/8/index.html) collections and [RFC-5](https://ngff.openmicroscopy.org/rfc/5/index.html) coordinate transformations. Both are drafts. The assumptions this implies are listed on the design decisions page.

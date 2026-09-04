@@ -21,9 +21,9 @@ differently, the disagreement is itself the finding.
 | --- | --- | --- | --- | --- |
 | base identity (Q1) | dye names only | `G, T, A, C`, in a command string | `DAPI, G, T, A, C` recorded | dye names only |
 | tile layout (Q2) | measured from image overlap | declared, from a position list | tile ids in a table, grid as a bitmap | a position list, wrong by 68 px |
-| magnification (Q8) | both 10x, scale 1 | both 10x | 5x against 20x, ratio 4 | 10x against 20x, ratio 2 |
-| pixel size against geometry (Q10) | 2.2 percent apart | stage offset kept over the images | — | 1.0 percent ISS, 0.4 percent pheno |
-| barcode against rounds (Q11) | 20 bases, 9 rounds | 9-base reads that join nothing (Q34) | 10 bases, 10 rounds, every row joins | 20 bases, 12 rounds, prefix works |
+| magnification (Q20) | both 10x, scale 1 | both 10x | 5x against 20x, ratio 4 | 10x against 20x, ratio 2 |
+| pixel size against geometry (Q22) | 2.2 percent apart | stage offset kept over the images | — | 1.0 percent ISS, 0.4 percent pheno |
+| barcode against rounds (Q23) | 20 bases, 9 rounds | 9-base reads that join nothing (Q15) | 10 bases, 10 rounds, every row joins | 20 bases, 12 rounds, prefix works |
 | instrument provenance (Q6) | TIFF tags | — | a YAML sidecar | per image, in every ND2 |
 
 ## The datasets
@@ -73,7 +73,7 @@ experimentC.zarr/
 The tile offsets in the well frame are measured, not declared. The delivery ships no per-well
 position list, so `layout` and the tile-to-well transforms come from cross correlating the nuclear
 overlap strip: tile 103 sits 991 px in `x` and 4 px in `y` from tile 102, the same value in all ten
-acquisitions, at correlations of 0.945 to 0.954. See Q2 and Q10.
+acquisitions, at correlations of 0.945 to 0.954. See Q2 and Q22.
 
 Hygiene, and not specification problems: the phenotyping folder sits outside the nine ISS cycle
 folders and is labelled `c0`, as though phenotyping were ISS cycle 0; the phenotyping channel is
@@ -85,7 +85,7 @@ cycles, `10X-c5-SBS-5` against `10X_c5-SBS-5`.
 
 The same screen as `experimentC`, the same well and the same two fields of view, run through the
 [scallops](https://github.com/Genentech/scallops) pipeline. It carries no raw tiles: it holds a
-stitch stage and an ops stage, so it is the processed counterpart Q13 asked for over pixels whose
+stitch stage and an ops stage, so it is the processed counterpart Q25 asked for over pixels whose
 `raw` form is already written, and the only dataset here that exercises `intermediate`.
 
 | What | Value |
@@ -98,7 +98,7 @@ stitch stage and an ops stage, so it is the processed counterpart Q13 asked for 
 | ops stage | registered ISS stack, 39987 peaks, 15590 reads, 561240 base intensities |
 | segmentation | five label arrays: 4706 nuclei, 4589 cells, 4525 cytosol, and two unfiltered |
 | features | 141 cell, 49 nuclei, 38 cytosol columns, plus one 275-column fusion of all three |
-| library | the same 5738 guides; not the reference the reads were decoded against (Q34) |
+| library | the same 5738 guides; not the reference the reads were decoded against (Q15) |
 
 This dataset is the evidence for [D4](design-decisions.md#d4-there-is-no-fixation-timepoint-level):
 `iss-registered-t0.zarr` declares axes `t, c, y, x` with `t: [1, 2, 3, 4, 5, 7, 8, 9, 10]`, the
@@ -107,7 +107,7 @@ that axis as `round`.
 
 ```text
 experimentC_scallops.zarr/
-├── zarr.json                     # collection; sp-ops:spec; edge reads → library (Q34)
+├── zarr.json                     # collection; sp-ops:spec; edge reads → library (Q15)
 ├── library                       # table: 5738 guides
 ├── plate1_intermediate/          # collection; plate; sp-ops:stage "intermediate"
 │   └── A/1/
@@ -115,9 +115,9 @@ experimentC_scallops.zarr/
 │       │   ├── tiles/            # collection; sp-ops:tiles
 │       │   │   ├── layout        # shapes: 2 polygons, from the stage position list
 │       │   │   ├── tile_features # table: 18 rows, one per tile and round
-│       │   │   └── tile102/ tile103/   # empty: no per-tile product exists  ← Q33
+│       │   │   └── tile102/ tile103/   # empty: no per-tile product exists  ← Q14
 │       │   ├── merged/
-│       │   │   ├── image         # multiscale (round, c, y, x); stitched, unregistered ← Q37
+│       │   │   ├── image         # multiscale (round, c, y, x); stitched, unregistered ← Q30
 │       │   │   ├── tile_provenance   # labels (y, x): which tile each pixel came from
 │       │   │   └── stitch_features   # table: 9 rows, the zncc the stitcher scored
 │       │   └── illumination/     # 9 multiscales (c, y, x) float32, in the tile frame
@@ -129,17 +129,17 @@ experimentC_scallops.zarr/
         │       ├── image         # multiscale (9, 5, 1002, 1972); sp-ops:rounds, registration
         │       ├── peaks         # points: 39987 candidate spots, with sigma
         │       ├── reads         # points: 15590 decoded reads, 9 bases each
-        │       ├── bases         # table: 561240 rows, one per read, round and base ← Q36
-        │       ├── crosstalk     # table: the 4 by 4 base bleed matrix ← Q36
-        │       └── peak_thresholds_labels, peak_thresholds_crosstalk   # 98 rows each ← Q36
+        │       ├── bases         # table: 561240 rows, one per read, round and base ← Q17
+        │       ├── crosstalk     # table: the 4 by 4 base bleed matrix ← Q17
+        │       └── peak_thresholds_labels, peak_thresholds_crosstalk   # 98 rows each ← Q17
         └── pheno/
             └── merged/
                 ├── image         # multiscale (2, 1002, 1972)
                 ├── nuclei, cells, cytosol              # labels (y, x) int32
-                ├── nuclei_unfiltered, cells_unfiltered # the pre-filter pass ← Q42
+                ├── nuclei_unfiltered, cells_unfiltered # the pre-filter pass ← Q47
                 ├── nuclei_features, cells_features, cytosol_features
                 ├── cell_barcodes  # table: 2798 cells with a called barcode
-                └── merged_features    # table: 4706 by 275, all three compartments ← Q41
+                └── merged_features    # table: 4706 by 275, all three compartments ← Q34
 ```
 
 42 RFC-8 nodes, 21 multiscales, 318 arrays, 14 tables, two shapes and two points elements, 359 MB.
@@ -148,7 +148,7 @@ There is no `raw` plate: those pixels are `experimentC`, and the two stores shar
 Three things are derived rather than copied. The tile layout comes from `stage_positions.parquet`,
 so these polygons are declared where `experimentC`'s were measured. Both merged images carry a
 14.52 µm translation into the well frame for the stitcher's 11 px fuse crop, which no source
-metadata records (Q39). And `tile_provenance` is the grid index plus one, because the source numbers
+metadata records (Q32). And `tile_provenance` is the grid index plus one, because the source numbers
 tiles from zero and zero is the labels background. The phenotyping merged image is written into both
 plate collections, because nothing between the stitch and the segmentation touched it and there is
 no way for one stage to say that a single element of it is another stage's element unchanged.
@@ -159,8 +159,8 @@ kept the nominal stage offset, 969.69697 px, in all ten acquisitions, where `exp
 the overlap is 3.2 percent, below the pipeline's own `min_overlap_fraction` of 4 percent. The 4 by 4
 crosstalk matrix ships as a multiscale with `y` and `x` space axes, so a viewer renders a
 calibration matrix as a 4-pixel image. Every label in `segment.zarr` points at a group that does not
-exist (Q35), two segmentations are named `.all` (Q42), and `spot-detect.zarr/images/A1-max` gives
-its `sigma` axis a `type` of `null` (Q38).
+exist (Q16), two segmentations are named `.all` (Q47), and `spot-detect.zarr/images/A1-max` gives
+its `sigma` axis a `type` of `null` (Q31).
 
 ### biohub_example
 
@@ -188,12 +188,12 @@ pixels, and beside it a 2048 by 2048 excerpt of well `A/1` that does, positioned
 biohub_example.zarr/
 ├── zarr.json                    # collection; sp-ops:spec; edge cells → library
 ├── library                      # table: 4211 guides
-├── feature_definitions          # table: 2935 features, no values anywhere (Q24)
+├── feature_definitions          # table: 2935 features, no values anywhere (Q26)
 └── plate1_processed/            # collection; plate; sp-ops:stage "processed"
     ├── cells                    # table: 831587 cells, all three wells, plate level
     └── A/1/                     # collection; well; scene: the well frame
         ├── pheno/
-        │   └── merged/          # collection; sp-ops:merged {"source": []}  ← Q19
+        │   └── merged/          # collection; sp-ops:merged {"source": []}  ← Q8
         │       ├── image        # multiscale (c, y, x) float32, 6 channels, 5 levels
         │       ├── cell_seg     # multiscale (y, x) int32; labels.source → image
         │       ├── nuclear_seg  # ... and ten more compartments
@@ -207,17 +207,17 @@ biohub_example.zarr/
 23 RFC-8 nodes, 124 arrays, three tables, 149 MB. Wells `A/2` and `A/3` are declared in the plate's
 columns and carry no node, which [](layout.md#screen-and-plates) permits because the delivery has no
 pixels for them; their rows are in the plate-level `cells` table. Two corrections make this a
-rewrite rather than a relabelling: the axes are squeezed and lowercased (Q29), and the labels are
-written at the image's pixel size rather than the one they declare (Q31). The well collection
+rewrite rather than a relabelling: the axes are squeezed and lowercased (Q44), and the labels are
+written at the image's pixel size rather than the one they declare (Q46). The well collection
 carries sixteen identical transforms, one per merged element, and eleven `sjoin` edges at
-`status: "suggested"` for the compartment membership nothing records (Q23).
+`status: "suggested"` for the compartment membership nothing records (Q12).
 
 Hygiene: the `labels/` group declares its contents twice, in `ome.labels` and in a sibling `labels`
 key, listing twelve and thirteen names against fifteen groups on disk, and the two ISS renderings
 appear in neither, so the only ISS-derived rasters in the submission are the ones a reader following
 the metadata never sees. `cell_seg` reports three cell counts that cannot all describe the same
 thing, 590472, 267449 and 44734217. `nuclear_seg` is two rows shorter than the image in the
-manifest, so the labels are not quite the same grid even before Q31. And the channel named `mCherry`
+manifest, so the labels are not quite the same grid even before Q46. And the channel named `mCherry`
 was imaged with mScarlet-I and the one named `GFP` with mEGFP, per the metadata block that names
 them.
 
@@ -245,9 +245,9 @@ what a `raw` store is being asked to carry, and the one that can be checked agai
 ```text
 cpg0021_sample.zarr/
 ├── zarr.json                       # collection; sp-ops:spec
-├── library                         # table: 82678 rows, one per delivered guide row ← Q45
+├── library                         # table: 82678 rows, one per delivered guide row ← Q19
 └── plate1_raw/                     # collection; plate CP186A; sp-ops:stage "raw"
-    ├── A/1/                        # collection; well ← Q44; scene: 680 transforms ← Q16
+    ├── A/1/                        # collection; well ← Q18; scene: 680 transforms ← Q40
     │   ├── iss/
     │   │   └── tiles/
     │   │       ├── layout          # shapes: 8 polygons, measured; stage readout beside ← Q49
@@ -285,7 +285,7 @@ four shapes elements, 5.6 GB. Four things about the store need stating, and each
   registration step 3, the modality registration, done at `raw` because a raw store places both
   modalities in one `well` frame and has no merged image to do it between. It is measured from the
   nuclear channel over 24 tile pairs per well at correlations of 0.77 to 0.91, and it is not the
-  ratio of the recorded pixel sizes (Q48). `sp-ops:registration` is bound to a processed multiscale,
+  ratio of the recorded pixel sizes (Q37). `sp-ops:registration` is bound to a processed multiscale,
   so the store cannot say any of this (Q50).
 - **`image_metadata` is the provenance table Q6 proposed,** written here to see whether it works: one
   row per acquired image, with objective, numerical aperture, magnification, camera, binning,
@@ -293,15 +293,15 @@ four shapes elements, 5.6 GB. Four things about the store need stating, and each
   puts it at the plate level; the store splits it per modality under each `tiles` collection, which
   [](features.md#merged-and-split-tables) permits and which lets the well and the modality come from
   position in the hierarchy rather than from columns. Its key is `(tile, round, channel)` and `on`
-  takes one column pair, so the edge joins on `tile` alone (Q40).
+  takes one column pair, so the edge joins on `tile` alone (Q33).
 
 Hygiene: 96 of the 272 images report an acquisition timestamp in the year 3189, and four of the
 eleven acquisitions whose clocks are usable stamp all sixteen of their images identically, so a
 distinct per-image time exists for 112 of 272; the store writes the recorded value with a
 `timestamp_valid` column beside it. The cycle 2 directory is `10x_c2-SBS-2` and the other eleven are
 `10X_c<n>-SBS-<n>`. `Well1_Point1` and `Well2_Point2` encode the well twice and the row and column
-not at all (Q44). Three phenotyping channels are named by dye or filter and one, `750`, by an
-excitation line, and what any of them images is recorded nowhere (Q20, Q51). And `gene_symbol` and
+not at all (Q18). Three phenotyping channels are named by dye or filter and one, `750`, by an
+excitation line, and what any of them images is recorded nowhere (Q9, Q51). And `gene_symbol` and
 `gene_id` do not agree on identity: 52 symbols carry more than one id, 293 ids more than one symbol.
 
 ### Rebuilding the stores
@@ -333,8 +333,8 @@ python scripts/check_sp_ops_zarr.py cpg0021_sample.zarr --nd2 path/to/cpg0021_sa
 | Store | Checks | Failed | Advisories |
 | --- | --- | --- | --- |
 | `experimentC.zarr` | 1810 | 0 | 0 |
-| `experimentC_scallops.zarr` | 361 | 4, the empty tile collections of Q33 | 1, the reads-to-library edge of Q34 |
-| `biohub_example.zarr` | 435 | 0 | 2, the empty `sp-ops:merged.source` of Q19 |
+| `experimentC_scallops.zarr` | 361 | 4, the empty tile collections of Q14 | 1, the reads-to-library edge of Q15 |
+| `biohub_example.zarr` | 435 | 0 | 2, the empty `sp-ops:merged.source` of Q8 |
 | `cpg0021_sample.zarr` | 27036 | 0 | 0 |
 
 `experimentC_scallops` is the only store that does not check clean, and both results are findings
@@ -358,18 +358,18 @@ subsample. Level 0 is unchanged, and it is the only level compared against the s
 | Q5 | `tile.index` conflates grid position and site id | `experimentC` |
 | Q6 | `raw` has nowhere to keep instrument provenance | `cpg0021_sample` |
 | Q7 | A table that annotates nothing has no defined edges | `experimentC` |
-| Q19 | `merged.source` cannot be filled by a merged-only store | `biohub_example` |
-| Q20 | `role` cannot describe a predicted or label-free channel | `biohub_example` |
-| Q21 | No home for the provenance of a derived element | `biohub_example` |
-| Q22 | A cell table has no `label` column to join on | `biohub_example` |
-| Q23 | Compartment membership can be unrecorded entirely | `biohub_example` |
-| Q32 | RFC-5 has no transform for a B-spline registration | `experimentC_scallops` |
-| Q33 | A stitch stage has no per-tile image to put in a tile | `experimentC_scallops` |
-| Q34 | The reference a read was decoded against is absent | `experimentC_scallops` |
-| Q35 | `labels.source` can dangle | `experimentC_scallops` |
-| Q36 | Diagnostics and calibration have no granularity | `experimentC_scallops` |
-| Q44 | The `well` row and column are recorded nowhere | `cpg0021_sample` |
-| Q45 | `library` has no unique row key, so `n:1` is false | `cpg0021_sample` |
+| Q8 | `merged.source` cannot be filled by a merged-only store | `biohub_example` |
+| Q9 | `role` cannot describe a predicted or label-free channel | `biohub_example` |
+| Q10 | No home for the provenance of a derived element | `biohub_example` |
+| Q11 | A cell table has no `label` column to join on | `biohub_example` |
+| Q12 | Compartment membership can be unrecorded entirely | `biohub_example` |
+| Q13 | RFC-5 has no transform for a B-spline registration | `experimentC_scallops` |
+| Q14 | A stitch stage has no per-tile image to put in a tile | `experimentC_scallops` |
+| Q15 | The reference a read was decoded against is absent | `experimentC_scallops` |
+| Q16 | `labels.source` can dangle | `experimentC_scallops` |
+| Q17 | Diagnostics and calibration have no granularity | `experimentC_scallops` |
+| Q18 | The `well` row and column are recorded nowhere | `cpg0021_sample` |
+| Q19 | `library` has no unique row key, so `n:1` is false | `cpg0021_sample` |
 
 ### Q1. `sp-ops:channels` requires a base identity the dataset does not record
 
@@ -424,7 +424,7 @@ plate; the same argument applies to rows and columns, and a subset store cannot 
 
 Fix. Say whether `rows` and `columns` describe the physical plate or only the wells present. If the
 plate, a subset store needs a way to say it cannot fill them; if only what is present, the guarantee
-weakens. Q44 sharpens the choice.
+weakens. Q18 sharpens the choice.
 
 ### Q5. `sp-ops:tile.index` conflates a grid position with an acquisition site id
 
@@ -453,7 +453,7 @@ per-image stage coordinates, filter blocks, seven laser lines with their powers,
 temperature.
 
 Fix. A plate-level table with one row per acquired image: a table like any other, needing no new key
-beyond an edge. `cpg0021_sample` writes one as `image_metadata`, and writing it exposes Q36's gap —
+beyond an edge. `cpg0021_sample` writes one as `image_metadata`, and writing it exposes Q17's gap —
 one row per image is `(tile, round, channel)` granularity, and [](features.md)'s ladder starts at
 the cell.
 
@@ -466,9 +466,9 @@ raw-only store `library` describes nothing in the store, because there are no re
 so the store writes an empty edge list on the screen collection.
 
 Fix. Say that an empty edge list is the correct value for a collection with no joinable pairs, or
-drop the SHOULD for collections that contain none. Q36 is the harder version.
+drop the SHOULD for collections that contain none. Q17 is the harder version.
 
-### Q19. `sp-ops:merged.source` is a MUST that a merged-only submission cannot fill
+### Q8. `sp-ops:merged.source` is a MUST that a merged-only submission cannot fill
 
 From `biohub_example` · Affects `sp-ops:merged`
 
@@ -481,7 +481,7 @@ existed: `cells` carries 2249 distinct tile ids and a grid overlay renders their
 Fix. Let `source` hold tile identifiers rather than references. This delivery has exactly those
 identifiers; making the key optional would lose them instead.
 
-### Q20. `role` cannot describe a label-free, reconstructed, or predicted channel
+### Q9. `role` cannot describe a label-free, reconstructed, or predicted channel
 
 From `biohub_example`, `cpg0021_sample` · Affects `sp-ops:channels.role`, D7
 
@@ -499,7 +499,7 @@ Fix. Separate what a channel is for, the current role, from how it was produced 
 reconstructed, predicted — and let it carry its marker and fluorophore, which `cpg0021_sample` needs
 too for a channel named `750`. Then say in D7 whether a prediction may anchor a registration.
 
-### Q21. There is no home for the provenance of a derived element
+### Q10. There is no home for the provenance of a derived element
 
 From `biohub_example` · Affects `labels.source`, D8
 
@@ -511,9 +511,9 @@ have no key at all.
 
 Fix. Let `labels.source` reference a channel of an image, and add a key for the method and
 parameters behind any derived element. This is Q6 on the processed side: without it a processed store
-can be read but not audited or regenerated. Q34 and Q42 are the same gap from other directions.
+can be read but not audited or regenerated. Q15 and Q47 are the same gap from other directions.
 
-### Q22. A cell table has no label column, and the specification's edge needs one
+### Q11. A cell table has no label column, and the specification's edge needs one
 
 From `biohub_example` · Affects [](features.md#merged-and-split-tables), D3
 
@@ -529,7 +529,7 @@ components must be parsed to join is the naming grammar
 [D3](design-decisions.md#d3-names-are-opaque-and-attributes-carry-the-meaning) rejects, moved from a
 path into a column.
 
-### Q23. Compartment membership can be unrecorded, and then only a spatial join recovers it
+### Q12. Compartment membership can be unrecorded, and then only a spatial join recovers it
 
 From `biohub_example` · Affects D8, [](joinable-components.md)
 
@@ -544,9 +544,9 @@ store writes eleven `sjoin` edges on `within` at `status: "suggested"`.
 Fix. The mechanism works: this is what `suggested` is for, and it belongs in
 [](joinable-components.md) as the worked example, because labels without feature tables is the
 common case. Add a SHOULD: a compartment label SHOULD share its parent's numbering or carry a
-membership column, so membership is data rather than a suggestion. Q43 is the shared-numbering case.
+membership column, so membership is data rather than a suggestion. Q48 is the shared-numbering case.
 
-### Q32. RFC-5 has no transform for the registration this pipeline computed
+### Q13. RFC-5 has no transform for the registration this pipeline computed
 
 From `experimentC_scallops` · Affects [](extension.md), A3, [](layout.md#registration)
 
@@ -564,7 +564,7 @@ external transform with its parameters. Without one, [](layout.md#registration)'
 registration step "is a coordinate transformation between RFC-5 coordinate systems" is false for
 step 2.
 
-### Q33. A tile collection MUST hold an image, and a stitch stage has no per-tile product
+### Q14. A tile collection MUST hold an image, and a stitch stage has no per-tile product
 
 From `experimentC_scallops` · Affects `sp-ops:tiles`, the [](layout.md) level table
 
@@ -578,11 +578,11 @@ Fix. Let a `tiles` collection carry its `layout` and its tile-granularity tables
 collections under it. Moving `layout` up to the modality splits the tile level's metadata across two
 collections for no gain.
 
-### Q34. The reference a read was decoded against is not in the store
+### Q15. The reference a read was decoded against is not in the store
 
 From `experimentC_scallops` · Affects the `reads` to `library` edge
 
-Q11 proposed a nine-base prefix join, the reads are nine bases, and the join still fails: 2.4
+Q23 proposed a nine-base prefix join, the reads are nine bases, and the join still fails: 2.4
 percent of the 15590 reads match a library prefix, against 2.2 percent expected by chance from 5738
 barcodes over 4⁹ reads. These reads were never decoded against this library. What they were decoded
 against is absent — `barcode_match` is true for 6733 reads over 1932 distinct barcodes, of which 183
@@ -590,11 +590,11 @@ are library prefixes, and `closest_match` lies inside the set observed in this w
 of rows. The store has nowhere to name that whitelist, nor to record that the `library` it carries
 is not it, so it writes the declared edge and the checker reports an advisory.
 
-Fix. The reference a base call was decoded against is provenance of `reads` and belongs wherever Q21
+Fix. The reference a base call was decoded against is provenance of `reads` and belongs wherever Q10
 puts it. A store that cannot say which barcode list produced its calls cannot be audited, and this
-one ships a `library` edge a reader would take on trust. Q26 is the other half.
+one ships a `library` edge a reader would take on trust. Q28 is the other half.
 
-### Q35. `labels.source` can resolve outside the store
+### Q16. `labels.source` can resolve outside the store
 
 From `experimentC_scallops` · Affects `labels.source`, D8
 
@@ -608,7 +608,7 @@ Fix. One sentence: `labels.source` MUST resolve, and MUST use an explicit extern
 image is in another store. A reader cannot tell a resolvable reference from this one without trying
 it, and a writer copying a pipeline's output verbatim reproduces the break.
 
-### Q36. Run-level diagnostics and calibration have no granularity
+### Q17. Run-level diagnostics and calibration have no granularity
 
 From `experimentC_scallops`, `cpg0021_sample` · Affects [](features.md), `sp-ops:relationships`
 
@@ -625,7 +625,7 @@ Fix. Add a granularity for the parameters and diagnostics of a processing step, 
 and say an empty edge list is correct for it. Add read granularity next to cell, since `reads` is
 already first-class, and a per-image rung for Q6.
 
-### Q44. The `well` attribute is a MUST and the delivery records only an ordinal
+### Q18. The `well` attribute is a MUST and the delivery records only an ordinal
 
 From `cpg0021_sample` · Affects the RFC-8 `well` attribute
 
@@ -642,7 +642,7 @@ Fix. Q3 and Q4 one level down, and the same sentence fixes it: the row and colum
 the acquisition system or the submitter. Add that a writer that assigns them SHOULD say so, because
 an ordinal in a file name is the common case and `A/1` asserts more than it knows.
 
-### Q45. `library` has no unique row key, and the declared read join is not n:1
+### Q19. `library` has no unique row key, and the declared read join is not n:1
 
 From `cpg0021_sample` · Affects `library`, edge `cardinality`
 
@@ -654,7 +654,7 @@ controls. `cardinality` cannot say that, and a reader that trusts `n:1` silently
 control read by five — the rows an analyst weights most heavily.
 
 Fix. Say that the element on the `1` side of an `n:1` edge MUST have a unique key in the joined
-column, and that a writer whose source does not MUST deduplicate or name the key. Q26's coverage
+column, and that a writer whose source does not MUST deduplicate or name the key. Q28's coverage
 field is the neighbour and does not cover this: coverage is how much of a table an edge reaches,
 this is one key reaching several rows.
 
@@ -662,26 +662,26 @@ this is one key reaching several rows.
 
 | Q | Question | Dataset |
 | --- | --- | --- |
-| Q8 | The modalities need not differ in magnification | `experimentC` |
-| Q9 | A merged image can be twice a tile, not 100 times | `experimentC` |
-| Q10 | The recorded pixel size disagrees with the geometry | `experimentC`, `cpg0021_sample` |
-| Q11 | Read length and barcode length differ | `experimentC`, `cpg0021_sample` |
-| Q12 | The named `library` columns are not the ones delivered | `experimentC` |
-| Q13 | The processed half was untested — now resolved | `experimentC` |
-| Q24 | Feature definitions can exist with no values | `biohub_example` |
-| Q25 | A denormalised column has drifted from its source | `biohub_example` |
-| Q26 | Coverage, not cardinality, is what an edge needs | `biohub_example` |
-| Q27 | An atlas sits above the screen the root fixes | `biohub_example` |
-| Q37 | Stacked rounds cannot say they are unregistered | `experimentC_scallops` |
-| Q38 | `sigma` is a real axis the fixed order excludes | `experimentC_scallops` |
-| Q39 | A merged image is not already in the well frame | `experimentC_scallops` |
-| Q40 | The peak join needs three columns, `on` takes one | `experimentC_scallops` |
-| Q41 | A table is split by column group, not by element | `experimentC_scallops` |
-| Q46 | A raw store can place one tile in twelve places | `cpg0021_sample` |
-| Q47 | The modalities cover different parts of the well | `cpg0021_sample` |
-| Q48 | The modality scale is not the ratio of pixel sizes | `cpg0021_sample` |
+| Q20 | The modalities need not differ in magnification | `experimentC` |
+| Q21 | A merged image can be twice a tile, not 100 times | `experimentC` |
+| Q22 | The recorded pixel size disagrees with the geometry | `experimentC`, `cpg0021_sample` |
+| Q23 | Read length and barcode length differ | `experimentC`, `cpg0021_sample` |
+| Q24 | The named `library` columns are not the ones delivered | `experimentC` |
+| Q25 | The processed half was untested — now resolved | `experimentC` |
+| Q26 | Feature definitions can exist with no values | `biohub_example` |
+| Q27 | A denormalised column has drifted from its source | `biohub_example` |
+| Q28 | Coverage, not cardinality, is what an edge needs | `biohub_example` |
+| Q29 | An atlas sits above the screen the root fixes | `biohub_example` |
+| Q30 | Stacked rounds cannot say they are unregistered | `experimentC_scallops` |
+| Q31 | `sigma` is a real axis the fixed order excludes | `experimentC_scallops` |
+| Q32 | A merged image is not already in the well frame | `experimentC_scallops` |
+| Q33 | The peak join needs three columns, `on` takes one | `experimentC_scallops` |
+| Q34 | A table is split by column group, not by element | `experimentC_scallops` |
+| Q35 | A raw store can place one tile in twelve places | `cpg0021_sample` |
+| Q36 | The modalities cover different parts of the well | `cpg0021_sample` |
+| Q37 | The modality scale is not the ratio of pixel sizes | `cpg0021_sample` |
 
-### Q8. The two modalities were imaged at the same magnification
+### Q20. The two modalities were imaged at the same magnification
 
 From `experimentC` · Affects D2, D7, [](layout.md#registration)
 
@@ -699,7 +699,7 @@ Fix. Keep the layout, give D2 a justification that does not depend on the magnif
 and say what a writer does when the modalities share a grid. Sharing one `layout` by reference is
 the obvious economy and cannot currently be expressed.
 
-### Q9. Tile and merged images do not differ by two orders of magnitude
+### Q21. Tile and merged images do not differ by two orders of magnitude
 
 From `experimentC` · Affects D2
 
@@ -711,7 +711,7 @@ Fix. Keep the separation of `tiles` and `merged`, for the reason D8 gives: a rea
 them gets everything computed on it. The size argument is not load-bearing and should not carry the
 decision alone.
 
-### Q10. The recorded pixel size and the measured geometry disagree by 2.2 percent
+### Q22. The recorded pixel size and the measured geometry disagree by 2.2 percent
 
 From `experimentC`, `cpg0021_sample` · Affects RFC-5 coordinate systems, [](features.md)
 
@@ -723,13 +723,13 @@ a raw store has nowhere to put the residual, since [](features.md#tile-and-well-
 `well_features` on a plate-level `wells` element. The store keeps 1.32 µm and uses the measured
 displacement, so its well-frame micrometres deliberately are not stage micrometres.
 `cpg0021_sample` reproduces this on both modalities at once, 1.0 percent for ISS and 0.4 for
-phenotyping — and that the two differ means it is not one stage calibration, which is Q48.
+phenotyping — and that the two differ means it is not one stage calibration, which is Q37.
 
 Fix. Say which of the two a coordinate system carries; if both are wanted, the calibrated value
 belongs on the image and the nominal one with Q6's provenance. Separately, allow [](features.md)'s
 quality-control tables at `raw`, so a residual has somewhere to go before `processed` exists.
 
-### Q11. Nine ISS rounds against twenty-nucleotide barcodes breaks the declared library join
+### Q23. Nine ISS rounds against twenty-nucleotide barcodes breaks the declared library join
 
 From `experimentC`, `cpg0021_sample` · Affects the `reads` to `library` edge
 
@@ -741,13 +741,13 @@ to make the join expressible. `cpg0021_sample` shows the prefix join at scale �
 against 20-nucleotide guides, the first twelve bases resolving 80862 of 82678 rows, which is every
 row the table can resolve at any length. `biohub_example` needs nothing, 10 bases against ten
 cycles; `experimentC_scallops` is where a prefix is not enough, because its reads were decoded
-against another reference (Q34).
+against another reference (Q15).
 
 Fix. The read length is a property of the ISS modality and belongs in its metadata; with it the edge
 can name a prefix length. The derived column is a workaround — a pipeline parameter in a table — and
 it breaks the moment a screen gains a round.
 
-### Q12. The library columns the specification names are not the ones the dataset has
+### Q24. The library columns the specification names are not the ones the dataset has
 
 From `experimentC`, `cpg0021_sample` · Affects [](joinable-components.md)
 
@@ -759,10 +759,10 @@ is not universal, and the column names are called illustrative — but the one t
 cannot be written as specified.
 
 Fix. Say which facts about a guide a reader needs rather than which columns: an identifier that
-joins to a read, a perturbation identity, whether the guide is a control, and, per Q45, which column
+joins to a read, a perturbation identity, whether the guide is a control, and, per Q19, which column
 is the key. A screen with only a gene symbol can then say so.
 
-### Q13. The dataset exercises the raw half of the specification only
+### Q25. The dataset exercises the raw half of the specification only
 
 From `experimentC` · Resolved by `experimentC_scallops`
 
@@ -772,12 +772,12 @@ conformant, but it carries no edge anywhere and `sp-ops:rounds`, `sp-ops:registr
 `sp-ops:merged` and two of the three leaf node types are never written, so the central claim — that
 this layout joins pixels to perturbations — was untested. `experimentC_scallops` is the counterpart
 this entry asked for and writes all of them. The claim is still not demonstrated end to end, but for
-a different reason: the chain is complete except for its last link, and that link is Q34.
+a different reason: the chain is complete except for its last link, and that link is Q15.
 
 Fix. None for the specification. What remains is a processed dataset whose reads join to its own
 library, which none of the four deliveries provides.
 
-### Q24. Feature definitions can exist without a feature matrix, and three vocabularies do not meet
+### Q26. Feature definitions can exist without a feature matrix, and three vocabularies do not meet
 
 From `biohub_example` · Affects [](features.md#cell-features)
 
@@ -791,7 +791,7 @@ matrix share no identifier.
 Fix. Say where a feature dictionary lives when it is shared across tables, and give it an edge to
 the tables it describes. Then a checker can report the disjointness, which today nothing can see.
 
-### Q25. A denormalised column disagrees with the table it was copied from
+### Q27. A denormalised column disagrees with the table it was copied from
 
 From `biohub_example` · Affects D9, edge `status`
 
@@ -809,7 +809,7 @@ Fix. State that a column duplicating a value reachable over an edge is a cache a
 authoritative, and make disagreement something `check_relationships` reports. A `status` of
 `computed` today asserts that a join column exists, not that it still agrees.
 
-### Q26. Coverage, not cardinality, is what an edge needs to declare
+### Q28. Coverage, not cardinality, is what an edge needs to declare
 
 From `biohub_example` · Affects edge `cardinality`, [](joinable-components.md)
 
@@ -821,9 +821,9 @@ label element to point at from any store built out of it.
 
 Fix. The query sketch already promises `check_relationships` will report "cardinality, coverage, and
 dangling keys". Let an edge declare coverage too, so a reader knows before loading that a table
-covers a third of its labels rather than all of them. Q34, Q45 and Q47 want the same field.
+covers a third of its labels rather than all of them. Q15, Q19 and Q36 want the same field.
 
-### Q27. The root is one screen, and an atlas sits above it
+### Q29. The root is one screen, and an atlas sits above it
 
 From `biohub_example` · Affects D1, [](features.md)
 
@@ -839,7 +839,7 @@ Fix. Add perturbation as a granularity, joined by an edge to `library` rather th
 element, and say whether a collection above the screen is in scope. A cross-screen atlas is the
 object an analyst is most likely to open first.
 
-### Q37. Stacked rounds cannot declare that they are not registered
+### Q30. Stacked rounds cannot declare that they are not registered
 
 From `experimentC_scallops` · Affects `sp-ops:registration`, D6
 
@@ -858,7 +858,7 @@ Fix. Make `sp-ops:registration` MUST on any image with a `round` axis, and let i
 are unregistered as well as name an anchor and a reference. The same applies to channels within a
 round; Q50 makes the argument one stage earlier.
 
-### Q38. `sigma` is a real axis the fixed order has no room for
+### Q31. `sigma` is a real axis the fixed order has no room for
 
 From `experimentC_scallops` · Affects D6
 
@@ -873,7 +873,7 @@ allow writer-defined axes after the known ones, ordered but not named by this sp
 say a writer SHOULD flatten such an axis into columns when it is singleton, which is what the store
 did.
 
-### Q39. A merged image is not already in the well frame
+### Q32. A merged image is not already in the well frame
 
 From `experimentC_scallops` · Affects [](layout.md#registration)
 
@@ -886,10 +886,10 @@ reads 11 px from where they are, which is more than the round registration resid
 worked to remove. The store derives 14.52 µm from `fuse_crop_width` and the array shapes.
 
 Fix. Delete the sentence. A merged image's transform into the well frame is whatever stitching
-produced, commonly not the identity. Q10 is the neighbour: there the well and stage frames disagree
+produced, commonly not the identity. Q22 is the neighbour: there the well and stage frames disagree
 on scale, here on origin.
 
-### Q40. `read` is a position hash, and the peak join needs three columns
+### Q33. `read` is a position hash, and the peak join needs three columns
 
 From `experimentC_scallops`, `cpg0021_sample` · Affects edge `on`, [](joinable-components.md)
 
@@ -906,7 +906,7 @@ Fix. Let `on` take a list of column pairs. Separately, either require a read ide
 not encode geometry, or say that `read` is scoped to one image and drop the claim that `peaks`
 carries it.
 
-### Q41. A compartment's table is split by column group, not by source
+### Q34. A compartment's table is split by column group, not by source
 
 From `experimentC_scallops` · Affects [](features.md#merged-and-split-tables)
 
@@ -923,7 +923,7 @@ Fix. Say that a split is by described element and that one element's table is on
 shipping measurements and geometry separately is expected to join them. Then pick the default merged
 encoding features.md leaves open, and note the prefix form as a fourth in use.
 
-### Q46. A raw store can place one field of view in twelve places
+### Q35. A raw store can place one field of view in twelve places
 
 From `cpg0021_sample` · Affects D5, `sp-ops:tiles.layout`
 
@@ -945,11 +945,11 @@ specification does not say which to do.
 
 Fix. Say that a tile's footprint in the well frame is a property of the tile, that the transforms of
 its channel arrays differ from it only by measured channel and round alignment, and that a writer
-MUST NOT pass an instrument's per-image position readout through as that alignment. Then Q16's
+MUST NOT pass an instrument's per-image position readout through as that alignment. Then Q40's
 coordinate system on the tile collection stops being only an economy: it is where the footprint
 belongs, and it makes this error unwritable rather than merely discouraged.
 
-### Q47. The two modalities cover different parts of the well
+### Q36. The two modalities cover different parts of the well
 
 From `cpg0021_sample` · Affects [](layout.md), D2
 
@@ -965,9 +965,9 @@ record, they are per modality, and nothing compares them.
 Fix. Nothing changes in the layout. The intersection of the modalities' footprints is a fact a
 reader needs before deciding what a store is good for, and it is computable from what is already
 written: make it a validator check, and say in [](layout.md) that a partial overlap is expected in a
-subset delivery. This is Q26's argument for pixels rather than rows.
+subset delivery. This is Q28's argument for pixels rather than rows.
 
-### Q48. The modality registration scale is not the ratio of the recorded pixel sizes
+### Q37. The modality registration scale is not the ratio of the recorded pixel sizes
 
 From `cpg0021_sample` · Affects D7, [](layout.md#registration)
 
@@ -978,9 +978,9 @@ two sizes: ISS records 1.2142857 µm at 10x and phenotyping 0.6071429 µm at 20x
 phenotyping pixel 0.4 percent below the recorded value, a measured ratio of 1.988. Registering the
 phenotyping nuclear channel onto the ISS one over 24 tile pairs per well, a translation alone leaves
 up to 30.4 µm across the well and adding a scale of 1.00636 leaves 5.3 µm. So composing the declared
-pixel sizes is wrong by 25 ISS pixels at the edge of the well, and Q10's gap is what lets it happen.
+pixel sizes is wrong by 25 ISS pixels at the edge of the well, and Q22's gap is what lets it happen.
 
-Fix. Q10's, for two modalities at once: a coordinate system says whether its pixel size is nominal
+Fix. Q22's, for two modalities at once: a coordinate system says whether its pixel size is nominal
 or calibrated. And D7 should say the modality transform is measured, not derived from the
 objectives, which are what a writer will reach for and are in exact ratio when the optics are not.
 
@@ -988,22 +988,22 @@ objectives, which are what a writer will reach for and are in exact ratio when t
 
 | Q | Question | Dataset |
 | --- | --- | --- |
-| Q14 | The well is the only name spanning two path segments | every store |
-| Q15 | Two pages disagree on where the stitch transform lives | every store |
-| Q16 | Placing raw tiles costs one transform per channel array | `experimentC`, `cpg0021_sample` |
-| Q17 | `sp-ops:channels` in array order says nothing in `raw` | `experimentC` |
-| Q18 | The inside of a multiscale is never shown | every store |
-| Q28 | A single-resolution image has no home for its channels | `biohub_example` |
-| Q29 | Conforming to the axis order can rewrite pixels | `biohub_example` |
-| Q30 | No transform is written with its input's dimensionality | every store |
-| Q31 | Labels need not agree with their source image | `biohub_example` |
-| Q42 | Two segmentations of one compartment cannot be told apart | `experimentC_scallops` |
-| Q43 | Compartment membership rides on a numbering convention | `experimentC_scallops` |
+| Q38 | The well is the only name spanning two path segments | every store |
+| Q39 | Two pages disagree on where the stitch transform lives | every store |
+| Q40 | Placing raw tiles costs one transform per channel array | `experimentC`, `cpg0021_sample` |
+| Q41 | `sp-ops:channels` in array order says nothing in `raw` | `experimentC` |
+| Q42 | The inside of a multiscale is never shown | every store |
+| Q43 | A single-resolution image has no home for its channels | `biohub_example` |
+| Q44 | Conforming to the axis order can rewrite pixels | `biohub_example` |
+| Q45 | No transform is written with its input's dimensionality | every store |
+| Q46 | Labels need not agree with their source image | `biohub_example` |
+| Q47 | Two segmentations of one compartment cannot be told apart | `experimentC_scallops` |
+| Q48 | Compartment membership rides on a numbering convention | `experimentC_scallops` |
 | Q49 | `layout` and the tile transforms need not agree | `cpg0021_sample` |
 | Q50 | `sp-ops:registration` has no home in `raw` | `cpg0021_sample` |
 | Q51 | Channel names are not unique within a well | `cpg0021_sample` |
 
-### Q14. The well is the only name that spans two path segments
+### Q38. The well is the only name that spans two path segments
 
 From every store · Affects [](layout.md), D3
 
@@ -1018,7 +1018,7 @@ that lists rows and columns separately, or name the well `A1` and leave the row 
 `well` attribute where they already are. The second is smaller and loses nothing, because names
 carry no meaning.
 
-### Q15. Two pages disagree on where the stitching transform lives
+### Q39. Two pages disagree on where the stitching transform lives
 
 From every store · Affects [](layout.md#modalities-tiles-and-merged-images), [](extension.md)
 
@@ -1031,7 +1031,7 @@ endpoints, which is the rule [](joinable-components.md#storage) states for edges
 
 Fix. Fix the sentence in [](layout.md).
 
-### Q16. Placing raw tiles in the well frame costs one transform per channel array
+### Q40. Placing raw tiles in the well frame costs one transform per channel array
 
 From `experimentC`, `cpg0021_sample` · Affects D5, RFC-5 coordinate systems
 
@@ -1044,9 +1044,9 @@ one. The multiplier is rounds times channels either way.
 Fix. Define a coordinate system on the tile collection. Stitching is then one transform per tile
 into the well frame and channel alignment one per channel into the tile frame, which is exactly the
 first and third registration steps of [](layout.md#registration). The count stops multiplying, and
-Q46 shows the same coordinate system is where the tile footprint belongs.
+Q35 shows the same coordinate system is where the tile footprint belongs.
 
-### Q17. `sp-ops:channels` in array order says nothing in `raw`
+### Q41. `sp-ops:channels` in array order says nothing in `raw`
 
 From `experimentC`, `cpg0021_sample` · Affects `sp-ops:channels`, `sp-ops:axis`
 
@@ -1059,7 +1059,7 @@ Fix. State that in `raw` the list holds exactly one entry, and either drop `inde
 `sp-ops:axis` on a channel node or say what it adds. The key earns its full definition in
 `processed`, where channels are stacked.
 
-### Q18. The inside of a multiscale is never shown
+### Q42. The inside of a multiscale is never shown
 
 From every store · Affects [](extension.md), A3
 
@@ -1072,10 +1072,10 @@ for an RFC-8 `nodes` list. The stores inline the singlescale nodes in the multis
 names a coordinate system with `name`, while RFC-8 and every example here use `id`.
 
 Fix. Show one complete multiscale, levels included, in [](extension.md), and note the `name` against
-`id` divergence in A3, which currently records RFC-5 as released with no caveat. Q30 is the same
+`id` divergence in A3, which currently records RFC-5 as released with no caveat. Q45 is the same
 problem one level up.
 
-### Q28. `sp-ops:channels` is specified on `multiscale`, so a single-resolution image has no home for it
+### Q43. `sp-ops:channels` is specified on `multiscale`, so a single-resolution image has no home for it
 
 From `biohub_example` · Affects `sp-ops:channels`
 
@@ -1087,7 +1087,7 @@ for the sake of one attribute.
 Fix. Bind the key to both node types, or say that a single-resolution image is written as a
 one-level multiscale and `singlescale` appears only inside one.
 
-### Q29. The fixed axis order can require rewriting pixels, not metadata
+### Q44. The fixed axis order can require rewriting pixels, not metadata
 
 From `biohub_example` · Affects D6
 
@@ -1099,7 +1099,7 @@ and conforming means transposing the array.
 Fix. Keep the rule, it earns its place. Say in D6 that conforming may require rewriting pixels
 rather than metadata, so that a conversion is budgeted as a rewrite.
 
-### Q30. No transform in the specification has the dimensionality of its input
+### Q45. No transform in the specification has the dimensionality of its input
 
 From every store · Affects [](extension.md), [](layout.md#registration)
 
@@ -1110,10 +1110,10 @@ the two-axis `well` frame with a two by three affine. No `byDimension` transform
 out, and the stores follow the examples, so their transforms are underdetermined the same way.
 
 Fix. Write one `byDimension` transform in full in [](extension.md). It is the form every real store
-needs and the only one the specification never shows. This is Q18 one level up: the parts a writer
+needs and the only one the specification never shows. This is Q42 one level up: the parts a writer
 cannot guess are the parts that are abbreviated.
 
-### Q31. Nothing requires a labels element to agree with the image it came from
+### Q46. Nothing requires a labels element to agree with the image it came from
 
 From `biohub_example` · Affects `labels.source`
 
@@ -1131,7 +1131,7 @@ a validator check. `scripts/check_sp_ops_zarr.py` implements it as an advisory: 
 source's 0.65 makes it report `extent (1331.2, 1331.2) um disagrees with its source image (665.6,
 665.6) um`. Q49 is the same shape for geometry.
 
-### Q42. Two segmentations of one compartment have no expression
+### Q47. Two segmentations of one compartment have no expression
 
 From `experimentC_scallops` · Affects labels naming, D3, [](extension.md)
 
@@ -1146,10 +1146,10 @@ not, so `A1-nuclei.all` is a legal id and an illegal path.
 
 Fix. Let a labels element name its compartment and, optionally, the processing variant it
 represents, so that "nuclei, unfiltered" is metadata rather than a naming convention. Same shape as
-Q21: what a derived element is, as against what it is called. The `.` divergence is worth one line
+Q10: what a derived element is, as against what it is called. The `.` divergence is worth one line
 in [](extension.md).
 
-### Q43. Compartment membership rides on a numbering convention
+### Q48. Compartment membership rides on a numbering convention
 
 From `experimentC_scallops` · Affects [](features.md), D9
 
@@ -1162,7 +1162,7 @@ not the only possible one; the store derives `cell_label` from it and writes 0 w
 a guess that happens to be checkable, since the labels arrays agree.
 
 Fix. Keep the column requirement. Add that a writer deriving membership from shared numbering MUST
-materialise it as a column, and that the edge is what a reader follows, never the numbering. Q23 is
+materialise it as a column, and that the edge is what a reader follows, never the numbering. Q12 is
 the same requirement failing the other way.
 
 ### Q49. Nothing requires `layout` and the tile-to-well transforms to agree
@@ -1180,7 +1180,7 @@ strip.
 
 Fix. Require that a tile's `layout` polygon and its tile-to-well transforms place it in the same
 position, and make it a validator check; `scripts/check_sp_ops_zarr.py` implements the comparison as
-an advisory, `check_layout_against_scene`. This is Q31 for geometry rather than pixel size: two
+an advisory, `check_layout_against_scene`. This is Q46 for geometry rather than pixel size: two
 records of one fact, no requirement that they agree, and a plausible conversion that breaks it
 silently.
 
@@ -1201,7 +1201,7 @@ tiles were placed by their stage coordinates, 30 µm out.
 Fix. Bind `sp-ops:registration` to any node that declares a transform into a frame it shares with
 another element, not only to a processed multiscale, and let a well collection carry one. Then a raw
 store can say which channel anchored it and what the transform was measured from — the same thing
-Q21 asks for derived elements and Q6 for raw pixels. Q37 is this one stage later.
+Q10 asks for derived elements and Q6 for raw pixels. Q30 is this one stage later.
 
 ### Q51. Channel names are not unique within a well, and channels are addressed by name
 
@@ -1213,12 +1213,12 @@ records `DAPI, Cy3, A594, Cy5, Cy7` and phenotyping records `DAPI, GFP, A594, Cy
 `Cy5` name a sequencing base in one modality and an antibody or dye stain in the other, on the same
 well, at the same stage. `role` does not disambiguate them, because it is what the channel is for
 and not what it is — `A594` is `base` under `iss` and `stain` under `pheno` — so selecting by name
-across the well returns two different measurements. This is the collision Q1 and Q20 make possible:
+across the well returns two different measurements. This is the collision Q1 and Q9 make possible:
 once base identity and marker identity are absent, the only names left are instrument settings, and
 instrument settings repeat.
 
 Fix. Say that `sp-ops:channels` names are unique within a modality, not within a well, and that a
-channel is addressed by modality and name together. Then Q1's dye field and Q20's marker field
+channel is addressed by modality and name together. Then Q1's dye field and Q9's marker field
 become what makes two `A594` channels distinguishable, which is the strongest argument for either.
 
 ## What the datasets confirm
@@ -1228,13 +1228,13 @@ Several decisions held up under the exercise, which is worth recording alongside
 - **D2 and D7, the modalities differ in magnification.** `biohub_example` images ISS at 5x/0.15 and
   phenotyping at 20x/0.55, a ratio of four; `cpg0021_sample` images 10x/0.45 against 20x/0.75, a
   ratio of two, with 8 and 40 fields of view per well. So the modality registration really is an
-  affine with a scale and the two grids really are independent. Q8 is about the justification being
-  written as though it always holds; Q48 is the refinement.
+  affine with a scale and the two grids really are independent. Q20 is about the justification being
+  written as though it always holds; Q37 is the refinement.
 - **D3, names are opaque.** `experimentC`'s missing ISS cycle 6 needed no name: the store writes
   `round5` with `sp-ops:axis` value 7 and the acquisition it came from. `cpg0021_sample` delivers
   wells as `Well1` and `Well2` with no row or column anywhere, so every level had to be named from
   something other than the delivery's own strings, and the two things the store could not invent are
-  the two the reader is told about in Q44 rather than left to infer from a path. Q22 is the
+  the two the reader is told about in Q18 rather than left to infer from a path. Q11 is the
   counter-example, a store that encoded a join key into a string.
 - **D4, there is no fixation timepoint level.** `experimentC_scallops` is the dataset D4 argues from
   and it holds up: a `t` axis whose values are the cycle labels 1 to 10 without 6, transform folders
@@ -1247,14 +1247,146 @@ Several decisions held up under the exercise, which is worth recording alongside
   through the nuclear anchor from those images alone. That is the case for declaring the anchor
   rather than inferring it. `cpg0021_sample` has a nuclear channel in all thirteen acquisitions, so
   every round and both modalities anchor on the same kind of thing, which `biohub_example` could not
-  provide in Q20 — and it also shows that the per-channel coordinate system is the mechanism by
-  which a plausible writer misregisters a store, which is Q46.
+  provide in Q9 — and it also shows that the per-channel coordinate system is the mechanism by
+  which a plausible writer misregisters a store, which is Q35.
 - **D6, singleton axes are omitted.** `experimentC` has one z plane per channel and `biohub_example`
   ships `(1, 6, 1, 2048, 2048)` with singleton `T` and `Z`. Neither says anything the squeezed form
   does not.
 - **D8, compartments are not fixed and are not nested.** `biohub_example` segments twelve
   compartments, ten of them organelle classes inside the cell, and the flat arrangement takes them
   without strain. Nesting them under `cells` would have failed on the first nucleolus.
-- **D9, relationships are an edge list.** Q25 is the case for it: the edge to the library is exact
+- **D9, relationships are an edge list.** Q27 is the case for it: the edge to the library is exact
   over all 831587 rows while the column copied from it has drifted on 9.7 percent of them. A reader
   that follows edges gets the right answer and one that trusts the copy does not.
+
+## Grouping and priority
+
+A read of the questions above through the lens that the layout is permissive: a store MAY
+ship only the subset of collections a dataset needs. Most divergences recorded on this page
+are a store using part of the object by design, which is fine. The entries that need a spec
+response fall into a few groups, and the largest risk is not the MUST conflicts.
+
+### 1. MUST tension: the spec is not permissive enough — done
+
+A MUST fired on a store the specification elsewhere says is legal. Resolved by relaxing the
+MUST to conditional ("MUST if present"), not by failing the store. Implemented in
+[](extension.md) and [](layout.md).
+
+- **Q8** `sp-ops:merged.source` MUST reference the tiles stitched from, but a merged-only
+  delivery discarded its tiles. [](layout.md) already blesses this store. `source` MAY now
+  hold tile ids, or be empty.
+- **Q14** The `tiles`/`tile` level table made a `tile` MUST exist under any `tiles`
+  collection, so a stitch stage that writes `tiles/` only to hold `layout` and
+  tile-granularity tables (no per-tile array) was non-conformant, and the `tiles` row did not
+  state the `intermediate` case at all. The `tile` row now reads "if it holds per-tile
+  images," and `intermediate` is named alongside `raw`/`processed`.
+- **Q7** `sp-ops:relationships` MUST on a table describing an element, but a raw-only
+  `library` joins to nothing. [](extension.md) now states an empty edge list is correct.
+
+### 2. Silent-correctness traps (the real risk) — pending
+
+A plausible writer following the spec and the source metadata produces a store where every
+MUST holds and the pixels or joins are wrong, with nothing to detect it. These argue for a
+validator layer more than for new fields. Ranked by blast radius:
+
+1. **Q35** a raw store can place one field of view in 12 places. Per-channel transforms vs
+   one footprint per tile; passing the instrument's per-image stage readout through
+   misregisters by up to 41 px. Add: a tile footprint is a property of the tile, and a
+   writer MUST NOT pass a per-image position readout through as alignment.
+2. **Q19** `library` has no unique row key, and the declared `n:1` read join is `n:5` for
+   the non-targeting rows, so a reader that trusts `n:1` multiplies every control read by
+   five. The `1` side of an `n:1` edge MUST have a unique key.
+3. **Q46** nothing requires a labels element to agree with its source image on physical
+   extent; a factor-of-two pixel-size mismatch shipped silently. Require agreement, make it
+   a check.
+4. **Q30 / Q50** a stacked-but-unregistered image is indistinguishable from a registered
+   one, and `sp-ops:registration` is a SHOULD with no home in `raw`. Make it MUST on any
+   image with a `round` axis, or any node declaring a transform into a shared frame, and let
+   it state "not registered".
+5. **Q49** nothing requires `layout` and the tile-to-well transforms to agree; they can
+   differ by 82 px and both satisfy their MUSTs. Require agreement, make it a check.
+
+Same family, lower blast radius: Q37 (modality scale is not the ratio of recorded pixel
+sizes, 30 µm), Q32 (a merged image is not already in the well frame; the sentence is false,
+11 px), Q27 (a denormalised column drifted 9.7 percent from the authoritative edge), Q22
+(recorded pixel size vs measured geometry, 2.2 percent), Q51 (channel names are not unique
+within a well; selecting by name returns two different measurements), Q15 (a `library` edge
+that matches 2.4 percent of reads, i.e. chance), Q5 (renumbering tiles loses the site-id
+link silently).
+
+### 3. Provenance: reuse the OME model, do not invent sp-ops keys — pending
+
+Q6 (raw instrument metadata) and Q10 (derived-element provenance) are real gaps, but the
+proposed fix of an `sp-ops:instrument` key or a bespoke table is the wrong default. The OME
+data model already covers most of Q6's list: `Instrument`/`Objective`/`Detector`, per-image
+acquisition date and instrument/objective settings, per-channel detector settings, and
+per-plane stage position, exposure and timestamp. RFC-8 states it replaces
+`bioformats2raw.layout` and that some of that metadata "is not yet represented in the
+proposed structures... intended to be addressed through... extensions." So the right ask is
+to reuse the OME data model and Bio-Formats, extending them where a field is genuinely
+missing, rather than mint sp-ops-private keys. The layout-provenance half of **Q2**
+(measured vs a stage readout) is the same shape at the tile level.
+
+### 4. Join and table model gaps (additive, not blocking) — pending
+
+None blocks conformance; each lets a store state something true it currently cannot.
+
+- **Q33** `on` takes one column pair; a peak-to-read join needs three (`y, x, sigma`).
+- **Q28** an edge declares cardinality but not coverage; a table over a third of its labels
+  looks like one over all.
+- **Q11 / Q48** a cell or compartment table needs plain label and parent-label columns
+  rather than an id parsed out of a string, or membership riding on a numbering convention.
+- **Q12** compartment membership can be unrecorded; a spatial join at `status: suggested`
+  recovers it. Mechanism works; add a SHOULD.
+- **Q23 / Q26 / Q34** a read length the join needs, an edge from feature definitions to the
+  tables they describe, and a fourth merged-table encoding `features.md` does not name.
+
+### 5. Internal inconsistencies and missing examples (editorial) — pending
+
+- **Q38** the well name `A/1` is two nested HCS-style levels (row `A`, then `1`), not a
+  single node id. State that explicitly so the id-rule contradiction dissolves.
+- **Q1 / Q9** the `role` vocabulary is open, not exhaustive; say so. Base identity (Q1) is
+  a `processed`-stage decision, and a channel MAY carry its marker or fluorophore (Q9).
+  Rewording, not a MUST conflict.
+- **Q39** two pages disagree on where the stitching transform lives; only the well
+  collection works.
+- **Q45 / Q42** no `byDimension` transform is ever written out, and a multiscale's inner
+  levels are never shown, yet both are the forms a writer needs.
+- **Q32** delete "merged images are already in the `well` frame" (also group 2).
+- **Q41, Q44, Q47, Q24, Q21, Q20, Q40, Q36** smaller wording and example fixes.
+
+### 6. Partial or missing data: not a spec problem — pending
+
+The requirement is right; the one delivery lacks the fact. At most a documentation
+sentence. **Q3** (plate id in a directory name only), **Q18** (the `well` ordinal), **Q16**
+(a `labels.source` that dangles in the delivery), **Q25** (the raw-only evidence gap, now
+largely settled by the scallops dataset). The per-dataset "hygiene" notes are delivery
+defects, not spec findings.
+
+Reviewed and not spec changes: **Q4** (a subset declaring only the present wells is
+allowable under the OME HCS spec) and **Q43** (a single-resolution image is written as a
+one-level multiscale, which is already supported).
+
+### 7. Confirmations
+
+D2/D7 (modalities differ in magnification, ratios of 4 and 2), D3 (opaque names), D4 (no
+fixation-timepoint level, `t` maps to `round`), D5, D6, D8, D9 all held. The scallops
+dataset settles Q1, Q2, Q5, Q25.
+
+### Carried over from the merged spec PR
+
+The earlier conformance comment raised three items. Two are reproduced here on other
+datasets: `merged.source` (Q8, done — see group 1) and the well name (Q38, still pending —
+see group 5). The third is not on this page: blank/background reference fields of view used
+for illumination correction and background subtraction have no home, so a converter drops
+them. Worth a `kind` field on `sp-ops:tile` (`field` vs `background`) or a sibling
+`calibration` collection.
+
+### Suggested order
+
+1. ~~Relax the group 1 MUSTs (Q8, Q14, Q7), which are cheap and match the permissive
+   intent.~~ Done.
+2. Decide the validator story for group 2; the traps are the real risk and several are
+   already implemented as advisories.
+3. Reuse OME and Bio-Formats for provenance (Q6, Q10) rather than new keys.
+4. Add the blank-tile capability the merged PR raised.

@@ -2,7 +2,7 @@
 
 `scripts/check_sp_ops_zarr.py` reports both rebuilt stores at the counts
 [](open-questions.md#rebuilding-the-stores) records: `experimentC_scallops` 361 checks with the four
-Q33 failures, `biohub_example` 435 checks clean. Everything on this page is therefore something the
+Q14 failures, `biohub_example` 435 checks clean. Everything on this page is therefore something the
 checker does not test. Each entry came from reading the two stores back against the requirement
 text of [](layout.md), [](extension.md), [](features.md) and [](joinable-components.md), and each
 names the store it came from.
@@ -36,7 +36,7 @@ undeclared collections and check clean.
 
 Fix. Say whether a modality MAY hold further collections, and if so that a reader ignores the ones
 it does not know. Then either name a calibration child or accept that the two-children sentence is
-a description of the common case rather than a rule. This is Q36 as a structural question rather
+a description of the common case rather than a rule. This is Q17 as a structural question rather
 than a granularity one: `illumination` is per round and per channel, and the feature ladder starts
 at the cell.
 
@@ -52,7 +52,7 @@ the store is not `raw`, so the key is being used outside both halves of its defi
 only way to say which imaging pass a profile belongs to.
 
 Fix. Either bind `sp-ops:axis` to any node that represents one position along an axis, whatever the
-stage, or give a non-`raw` element another way to name its round. Q17 asks the same question from
+stage, or give a non-`raw` element another way to name its round. Q41 asks the same question from
 the other end, where the key says nothing because a raw channel array has no `c` axis.
 
 ### S3. Six of seventeen tables have no incident edge
@@ -70,7 +70,7 @@ the same level of the hierarchy, linked to it by an edge". Six tables have no ed
 | `plate1_processed/A/1/iss/merged/crosstalk` | the 4 by 4 base bleed matrix |
 | `plate1_processed/A/1/iss/merged/peak_thresholds_labels` | a threshold sweep, 98 rows |
 | `plate1_processed/A/1/iss/merged/peak_thresholds_crosstalk` | a threshold sweep, 98 rows |
-| `feature_definitions` | 2935 feature names, no values (Q24) |
+| `feature_definitions` | 2935 feature names, no values (Q26) |
 
 None of them describes an element. A stitching score describes a run, a bleed matrix describes an
 optical path, a threshold sweep describes a decision, and a feature dictionary describes other
@@ -78,7 +78,7 @@ tables' columns. `check_relationships` is called with `required=False` everywher
 never enforced and these pass.
 
 Fix. Q7 proposes that an empty edge list is the correct value for a collection with no joinable
-pairs, and Q36 proposes a granularity for the parameters and diagnostics of a processing step. Both
+pairs, and Q17 proposes a granularity for the parameters and diagnostics of a processing step. Both
 are needed, and the MUST should be narrowed to "every table that describes an element", with the
 converse stated: a table that describes no element MUST say so rather than being silent. As written
 the requirement cannot distinguish a diagnostic table from a forgotten edge.
@@ -97,7 +97,7 @@ plate1_processed/A/1/iss/merged/peak_thresholds_labels/obs/f0.5
 
 a path segment with a `.` in it. Nothing in the specification reaches inside a table, so nothing
 forbids it and nothing detects it, but the character restriction D3 relies on is broken by data
-rather than by a writer's naming choice. Q42 notes the same divergence for a labels element named
+rather than by a writer's naming choice. Q47 notes the same divergence for a labels element named
 `.all`; that one a writer can rename, this one is a column an analyst asked for.
 
 Fix. Say whether the path restriction applies inside a leaf element or only to the nodes the
@@ -106,7 +106,7 @@ mapping, which is worth saying explicitly because it is lossy.
 
 ### S5. A merged collection's only images are renderings
 
-From `biohub_example` · Affects [](layout.md), `sp-ops:channels`, Q20
+From `biohub_example` · Affects [](layout.md), `sp-ops:channels`, Q9
 
 `plate1_processed/A/1/iss/merged` holds exactly two elements, `iss_gene_image` and
 `iss_guide_image`, both `(4, 2048, 2048)` `uint8` RGBA rasters of a gene and guide assignment. They
@@ -117,7 +117,7 @@ collection is met by them, and `sp-ops:channels` is filled with four entries nam
 declared ISS modality of this delivery consists entirely of renderings, and a reader following the
 metadata cannot tell.
 
-Fix. Q20 asks `role` to separate what a channel is for from how it was produced. This is the
+Fix. Q9 asks `role` to separate what a channel is for from how it was produced. This is the
 stronger version: a rendering is not a channel stack at all, and needs either its own node type or
 a flag on the multiscale. Until then the requirement that a merged collection hold an image is
 satisfiable by a screenshot.
@@ -134,7 +134,7 @@ second element to register to and no anchor channel that means anything. The key
 has nothing to say is indistinguishable from one whose writer forgot.
 
 Fix. Give `sp-ops:registration` a form that states the element is its own reference, and say that
-the SHOULD does not apply to a derived raster. Q37 asks for the same expressiveness in the opposite
+the SHOULD does not apply to a derived raster. Q30 asks for the same expressiveness in the opposite
 case, where stacked rounds are not registered and no key can say so, and Q50 asks for it one stage
 earlier. All three want the key to be able to describe an absence.
 
@@ -158,7 +158,7 @@ round, has 2 rows and would be `1:1`. So the same element is `1:1` or `1:n` depe
 rounds a modality has, and the page states only the single-round case.
 
 Fix. Either say tile granularity is one row per tile and per round, making the edge `1:n` and the
-key two columns — which Q40 also needs — or keep one row per tile and say where a per-round score
+key two columns — which Q33 also needs — or keep one row per tile and say where a per-round score
 goes instead. The example's `1:1` should not be the only cardinality shown.
 
 ### S8. Two columns the specification names by name are absent
@@ -184,11 +184,11 @@ makes a `read` column appear on `peaks`.
 
 Fix. Separate the two claims the table currently makes. Which facts an element must carry is a
 requirement; which column carries them is not. Then say `peaks` need not be decodable on its own,
-which is what Q40 is really about, and that a named column may live in a split table.
+which is what Q33 is really about, and that a named column may live in a split table.
 
 ### S9. Axis names are now recorded twice, with nothing requiring agreement
 
-From both stores · Affects [](extension.md), Q18
+From both stores · Affects [](extension.md), Q42
 
 Both stores are written through ome-zarr-py, which sets the Zarr v3 `dimension_names` on every
 pyramid level array. So each level now records its axis names twice: once in core Zarr metadata and
@@ -197,7 +197,7 @@ stores that is 121 level arrays, and all 121 agree — but only because one writ
 nothing in the specification or the checker compares them.
 
 Fix. Say which is authoritative and require the other to agree, then make it a validator check.
-This is the shape of Q31, where a labels element and its source image both record a pixel size and
+This is the shape of Q46, where a labels element and its source image both record a pixel size and
 nothing requires them to match, and of Q49, where `layout` and the tile-to-well transforms both
 record a position. Two records of one fact and no stated precedence is a pattern worth fixing once
 rather than three times.
@@ -220,15 +220,15 @@ model itself.
 ## What the audit confirms
 
 Eight entries of [](open-questions.md) are reproduced by the rebuilt stores exactly as recorded,
-and are not restated above: Q14 (the row half of `A/1` carries no metadata, in both stores and both
-plates of `experimentC_scallops`), Q19 (`sp-ops:merged.source` is `[]` on both `biohub_example`
-modalities), Q24 (`feature_definitions` annotates nothing), Q33 (four empty tile collections, the
-four checker failures), Q34 (the reads-to-library edge, the one advisory), Q36 (run-level
-diagnostics, which S3 counts), Q40 (the peak key, which S8 sharpens) and Q42 (the `.` divergence,
+and are not restated above: Q38 (the row half of `A/1` carries no metadata, in both stores and both
+plates of `experimentC_scallops`), Q8 (`sp-ops:merged.source` is `[]` on both `biohub_example`
+modalities), Q26 (`feature_definitions` annotates nothing), Q14 (four empty tile collections, the
+four checker failures), Q15 (the reads-to-library edge, the one advisory), Q17 (run-level
+diagnostics, which S3 counts), Q33 (the peak key, which S8 sharpens) and Q47 (the `.` divergence,
 which S4 finds a second instance of).
 
 Three things the audit checked and found correct, worth recording because each is a plausible way
 to get a store wrong: every labels element is `int32` as [](features.md) gives it; every labels
 element agrees with its `labels.source` image on physical extent to within a micrometre, which is
-the Q31 advisory and which the `biohub_example` pixel-size correction is what makes true; and every
+the Q46 advisory and which the `biohub_example` pixel-size correction is what makes true; and every
 element id in both stores is unique and matches `[a-zA-Z0-9-_.]+`.

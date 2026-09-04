@@ -12,12 +12,14 @@ Everything this specification adds to RFC-8 uses the prefix `sp-ops`, following 
 | `sp-ops:modality` | modality collection | `"iss"`, `"pheno"`, or another string | MUST |
 | `sp-ops:tiles` | tiles collection | `{"layout": Reference}`; the shapes element with one polygon per tile | MUST |
 | `sp-ops:tile` | tile collection | `{"index": integer}`; matches the `tile` column of `layout` | MUST on tiles |
-| `sp-ops:merged` | merged collection | `{"source": [Reference, ...]}`; the tiles it was stitched from | MUST on merged |
+| `sp-ops:merged` | merged collection | `{"source": [Reference or ID, ...]}`; the tiles it was stitched from, by reference where the tiles are present in the store and by bare id where they are not; `[]` when no tile ids are known | MUST on merged |
 | `sp-ops:axis` | round or channel node | `{"name": "round" or "c" or "t", "index": integer, "value": number or string, "unit": string}`; `value` and `unit` optional | MUST in `raw` |
 | `sp-ops:rounds` | processed multiscale with a `round` axis | array of `{"index": integer, "acquisition": Reference}`, one per slice along `round` | MUST when `round` is present |
 | `sp-ops:channels` | multiscale | array of `{"name": string or null, "role": "nuclear" or "base" or "stain" or "other"}`, one per channel in array order; or one such array per round when channels differ between rounds | MUST on images |
 | `sp-ops:registration` | processed multiscale | `{"anchor": channel name, "reference": Reference}`, or one such object per round when the anchor differs between rounds | SHOULD |
 | `sp-ops:relationships` | any collection | `{"version": string, "edges": [...]}`, see [](joinable-components.md#storage) | MUST for every table that describes an element; SHOULD otherwise |
+
+A table that describes no element in the store, for example a screen-level `library` in a raw-only store with nothing to join it to, MUST still carry `sp-ops:relationships`, with `edges: []`. An empty list is the correct value for "no joinable pairs exist," not evidence of an omission.
 
 At most one channel per round has role `nuclear`; phase or brightfield rounds have none. `sp-ops:channels` is authoritative over array position, and a writer MAY use fewer than four `base` channels.
 
