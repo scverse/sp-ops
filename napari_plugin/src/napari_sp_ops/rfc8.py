@@ -102,21 +102,52 @@ class Axis:
         return self.type == "space" and self.name.lower() in {"y", "x"}
 
 
+def singlescale_nodes(group: zarr.Group) -> list[dict[str, Any]]:
+    """The ``singlescale`` descriptors of an RFC-8 multiscale written as a collection of levels."""
+    return [entry for entry in ome(group).get("nodes", []) if entry.get("type") == "singlescale"]
+
+
+def is_multiscale(group: zarr.Group) -> bool:
+    """True for a 0.4/0.5 ``multiscales`` image or an RFC-8 multiscale with ``singlescale`` nodes."""
+    metadata = ome(group)
+    return bool(metadata.get("multiscales")) or (metadata.get("type") == "multiscale" and bool(singlescale_nodes(group)))
+
+
 def multiscale_axes(group: zarr.Group) -> list[Axis]:
-    """Axes of the first multiscale, from ``axes``, its ``coordinateSystems``, or the node's."""
-    multiscale = ome(group)["multiscales"][0]
-    axes = multiscale.get("axes")
-    if axes is None and "coordinateSystems" in multiscale:
-        axes = multiscale["coordinateSystems"][0]["axes"]
+    """Axes of the image, from ``multiscales[0].axes``, its ``coordinateSystems``, or the node's own."""
+    multiscales = ome(group).get("multiscales") or [{}]
+    axes = multiscales[0].get("axes")
+    if axes is None and "coordinateSystems" in multiscales[0]:
+        axes = multiscales[0]["coordinateSystems"][0]["axes"]
     if axes is None:
         axes = ome_attributes(group)["coordinateSystems"][0]["axes"]
     return [Axis(axis["name"], axis.get("type", "space"), axis.get("unit")) for axis in axes]
 
 
+def multiscale_levels(group: zarr.Group) -> list[tuple[str, list[dict[str, Any]]]]:
+    """Return ``(array path, transformations)`` per pyramid level, highest resolution first.
+
+    A ``multiscales`` image lists its levels under ``datasets``. An RFC-8
+    multiscale lists them as ``singlescale`` nodes, each with its own
+    ``coordinateTransformations`` from the array to the image's coordinate
+    system; a ``sequence`` is kept whole for the affine composer.
+    """
+    multiscales = ome(group).get("multiscales")
+    if multiscales:
+        return [(dataset["path"], [dict(t) for t in dataset.get("coordinateTransformations", [])]) for dataset in multiscales[0]["datasets"]]
+    levels: list[tuple[str, list[dict[str, Any]]]] = []
+    for entry in singlescale_nodes(group):
+        path = entry.get("path", {})
+        path = path.get("path") if isinstance(path, dict) else path
+        transforms = entry.get("attributes", {}).get("coordinateTransformations", [])
+        levels.append((posixpath.normpath(path or entry.get("name", "")), [dict(t) for t in transforms[:1]]))
+    return levels
+
+
 def dataset_transforms(group: zarr.Group) -> list[dict[str, Any]]:
-    """Return every coordinate transformation of the full-resolution dataset."""
-    dataset = ome(group)["multiscales"][0]["datasets"][0]
-    return [dict(transform) for transform in dataset.get("coordinateTransformations", [])]
+    """Return every coordinate transformation of the full-resolution level."""
+    levels = multiscale_levels(group)
+    return levels[0][1] if levels else []
 
 
 @dataclass(frozen=True)

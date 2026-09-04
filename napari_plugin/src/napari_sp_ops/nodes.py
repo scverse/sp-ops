@@ -75,7 +75,7 @@ def kind(node: Node) -> str:
             return element
         node_type = rfc8.ome_type(node.group)
         if node_type == "multiscale":
-            return "multiscale" if "multiscales" in rfc8.ome(node.group) else "unknown"
+            return "multiscale" if rfc8.is_multiscale(node.group) else "unknown"
     else:
         node_type = "collection"
     attributes = node.attributes

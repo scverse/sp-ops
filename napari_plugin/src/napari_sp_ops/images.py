@@ -1,7 +1,8 @@
 """Turn one RFC-8 multiscale node into napari image, labels or RGB layer data."""
 
+import posixpath
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import dask.array as da
@@ -26,6 +27,13 @@ class Placement:
     translation_yx: tuple[float, float] | None = None
     visible: bool | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    ancestors: list[tuple[nodes.Node, str]] = field(default_factory=list)
+
+    def descend(self, parent: nodes.Node, child: nodes.Node) -> "Placement":
+        """The placement for ``child``, recording ``parent`` and every earlier collection above it."""
+        step = posixpath.normpath(child.ref.path) if child.ref and child.ref.path else child.name
+        ancestors = [(collection, f"{relative}/{step}") for collection, relative in self.ancestors] + [(parent, step)]
+        return replace(self, ancestors=ancestors)
 
 
 def _channel_index(axes: list[rfc8.Axis]) -> int | None:
@@ -78,6 +86,49 @@ def contrast_limits(level: da.Array, channel_index: int | None) -> list[list[flo
     return limits
 
 
+def scene_transforms(node: nodes.Node, placement: Placement, axes: list[rfc8.Axis]) -> list[dict[str, Any]]:
+    """Transforms an ancestor's ``scene`` declares for this node, padded to the node's axes by name.
+
+    Only scale and translation (or a sequence of them) are applied; anything
+    else is reported and skipped. The scene's output coordinate system names
+    the axes the transform acts on; other axes of the node get identity.
+    """
+    result: list[dict[str, Any]] = []
+    names = [axis.name.lower() for axis in axes]
+    for collection, relative in placement.ancestors:
+        scene = collection.attributes.get("scene")
+        if not isinstance(scene, dict):
+            continue
+        systems = {system.get("id"): [axis["name"].lower() for axis in system.get("axes", [])] for system in scene.get("coordinateSystems", [])}
+        for transform in scene.get("coordinateTransformations", []):
+            target = transform.get("input", {}).get("path", {})
+            target = target.get("path") if isinstance(target, dict) else target
+            if target is None or posixpath.normpath(target) != relative:
+                continue
+            scene_axes = systems.get(transform.get("output", {}).get("id"), names[-2:])
+            padded = _pad_transform(transform, scene_axes, names)
+            if padded is None:
+                warnings.warn(f"napari-sp-ops skips a {transform.get('type')} scene transform on {node.name}", stacklevel=2)
+            else:
+                result.append(padded)
+    return result
+
+
+def _pad_transform(transform: dict[str, Any], scene_axes: list[str], names: list[str]) -> dict[str, Any] | None:
+    kind = transform.get("type")
+    if kind == "sequence":
+        parts = [_pad_transform(part, scene_axes, names) for part in transform.get("transformations", [])]
+        return None if any(part is None for part in parts) else {"type": "sequence", "transformations": parts}
+    if kind not in ("scale", "translation") or len(transform[kind]) != len(scene_axes):
+        return None
+    identity = 1.0 if kind == "scale" else 0.0
+    values = [identity] * len(names)
+    for axis, value in zip(scene_axes, transform[kind], strict=True):
+        if axis in names:
+            values[names.index(axis)] = value
+    return {"type": kind, kind: values}
+
+
 def read_multiscale(node: nodes.Node, placement: Placement | None = None) -> LayerData:
     """Return layer data for a multiscale node with sp-ops names, colormaps and placement.
 
@@ -90,9 +141,10 @@ def read_multiscale(node: nodes.Node, placement: Placement | None = None) -> Lay
     group = node.group
     attributes = node.attributes
     axes = rfc8.multiscale_axes(group)
-    datasets = rfc8.ome(group)["multiscales"][0]["datasets"]
-    pyramid = [da.from_zarr(group[dataset["path"]]) for dataset in datasets]
-    transforms = rfc8.dataset_transforms(group)
+    levels = rfc8.multiscale_levels(group)
+    pyramid = [da.from_zarr(group[path]) for path, _ in levels]
+    transforms = list(levels[0][1])
+    transforms.extend(scene_transforms(node, placement, axes))
 
     squeezed = [index for index, axis in enumerate(axes) if pyramid[0].shape[index] == 1 and not axis.is_yx]
     if squeezed:
