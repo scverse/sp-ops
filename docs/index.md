@@ -16,6 +16,7 @@ features.md
 joinable-components.md
 design-decisions.md
 extension.md
+open-questions.md
 references.md
 ```
 
@@ -24,5 +25,6 @@ references.md
 - [](joinable-components.md). The library, reads, peaks, labels, and feature tables, and the edges that join them.
 - [](design-decisions.md). Assumptions, nine decisions with their rejected alternatives, and the mapping from scallops vocabulary.
 - [](extension.md). The `sp-ops` attribute keys and node types, with one complete example.
+- [](open-questions.md). The `experimentC`, `biohub_example`, `experimentC_scallops`, and `cpg0021_sample` datasets written as stores, and the fifty-one questions those exercises raised.
 
 Keywords MUST, SHOULD, and MAY follow [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119.txt), see assumption A1.
