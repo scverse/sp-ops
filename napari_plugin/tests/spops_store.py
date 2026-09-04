@@ -10,6 +10,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
+import shapely
 import zarr
 
 OME_VERSION = "0.6-rfc8-draft"
@@ -28,6 +31,7 @@ YX = [
 ]
 ZYX = [{"name": "z", "type": "space", "unit": "micrometer"}, *YX]
 YXC = [*YX, {"name": "c", "type": "channel"}]
+ISS_LAYOUT = {0: (100.0, 200.0, 120.8, 220.8), 1: (120.8, 200.0, 141.6, 220.8)}
 ROUND_CYX = [{"name": "round", "type": "array"}, {"name": "c", "type": "channel"}, *YX]
 TCZYX_LOWER = [{**axis, "name": axis["name"].lower()} for axis in TCZYX]
 
@@ -87,6 +91,8 @@ class SyntheticScreen:
     labels: Path
     overlay: Path
     iss_image: Path
+    reads: Path
+    layout: Path
     plate_raw: Path
     raw_tiles: Path
     raw_tile: Path
@@ -157,8 +163,11 @@ def _processed_iss(modality: Path) -> None:
     """A registered multi-round ISS image with axes round, c, y, x."""
     write_collection(modality, "iss", [node("collection", "merged")], {"sp-ops:modality": "iss"})
     merged = modality / "merged"
-    write_collection(merged, "merged", [node("multiscale", "image", node_id="iss-merged-image")], {"sp-ops:merged": {"source": []}})
+    write_collection(
+        merged, "merged", [node("multiscale", "image", node_id="iss-merged-image"), node("sp-ops:points", "reads")], {"sp-ops:merged": {"source": []}}
+    )
     rng = np.random.default_rng(2)
+    write_points(merged / "reads", np.array([[1.3, 2.6], [13.0, 6.5], [20.8, 19.5]]), {"read": ["ACGT", "TTGA", "ACGT"], "barcode": ["b1", "b2", "b1"]})
     write_multiscale(
         merged / "image",
         rng.integers(0, 4000, (2, 2, 16, 16), dtype=np.uint16),
@@ -170,6 +179,31 @@ def _processed_iss(modality: Path) -> None:
         },
         "well",
     )
+
+
+def write_element_group(group_dir: Path, element_type: str, extra: dict | None = None) -> None:
+    """A leaf element group tagged with ``spatialdata_attrs.element_type`` and no ``ome`` key."""
+    group_dir.mkdir(parents=True, exist_ok=True)
+    attributes = {"spatialdata_attrs": {"element_type": element_type}, **(extra or {})}
+    payload = {"zarr_format": 3, "node_type": "group", "attributes": attributes}
+    (group_dir / "zarr.json").write_text(json.dumps(payload, indent=2))
+
+
+def write_layout(group_dir: Path, boxes: dict[int, tuple[float, float, float, float]]) -> None:
+    """GeoParquet polygons, one per tile index, from x_min, y_min, x_max, y_max boxes in micrometres."""
+    write_element_group(group_dir, "shapes", {"sp-ops:geometry": "polygon", "coordinateSystem": "well"})
+    geometry = [shapely.box(*box).wkb for box in boxes.values()]
+    table = pa.table({"tile": pa.array(list(boxes), pa.int64()), "geometry": pa.array(geometry, pa.binary())})
+    geo = {"version": "1.0.0", "primary_column": "geometry", "columns": {"geometry": {"encoding": "WKB", "geometry_types": ["Polygon"]}}}
+    table = table.replace_schema_metadata({b"geo": json.dumps(geo).encode()})
+    pq.write_table(table, group_dir / "shapes.parquet")
+
+
+def write_points(group_dir: Path, xy: np.ndarray, columns: dict[str, list] | None = None) -> None:
+    """Parquet points with x and y columns plus any extra columns."""
+    write_element_group(group_dir, "points", {"coordinateSystem": "well"})
+    data = {"x": xy[:, 0], "y": xy[:, 1], **(columns or {})}
+    pq.write_table(pa.table(data), group_dir / "points.parquet")
 
 
 def write_plain_multiscale(group_dir: Path, array: np.ndarray, axes: list[dict], scale: list[float]) -> None:
@@ -196,21 +230,26 @@ def _raw_plate(plate: Path) -> None:
 
     iss = well / "iss"
     write_collection(iss, "iss", [node("collection", "tiles")], {"sp-ops:modality": "iss"})
-    write_collection(iss / "tiles", "tiles", [node("collection", "tile0", {"sp-ops:tile": {"index": 0}})], {"sp-ops:tiles": {}})
-    tile = iss / "tiles" / "tile0"
-    rounds = []
-    for index, cycle in enumerate((1, 2)):
-        rounds.append(node("collection", f"round{index}", {"acquisition": {"id": f"iss-c{cycle}"}, "sp-ops:axis": {"name": "round", "index": index, "value": cycle}}))
-    write_collection(tile, "tile0", rounds, {"sp-ops:tile": {"index": 0}})
+    tile_nodes = [node("collection", f"tile{index}", {"sp-ops:tile": {"index": index}}) for index in range(2)]
+    write_collection(
+        iss / "tiles", "tiles", [node("sp-ops:shapes", "layout", node_id="iss-layout"), *tile_nodes], {"sp-ops:tiles": {"layout": {"id": "iss-layout"}}}
+    )
+    write_layout(iss / "tiles" / "layout", ISS_LAYOUT)
     channels = [("DAPI", "nuclear"), ("Cy3", "base")]
-    for round_node in rounds:
-        round_dir = tile / round_node["name"]
-        channel_nodes = []
-        for index, (name, role) in enumerate(channels):
-            attrs = {"sp-ops:axis": {"name": "c", "index": index}, "sp-ops:channels": [{"name": name, "role": role}]}
-            channel_nodes.append(node("multiscale", f"channel{index}", attrs))
-            write_multiscale(round_dir / f"channel{index}", rng.integers(0, 4000, (16, 16), dtype=np.uint16), YX, [1.3, 1.3], attrs, f"iss-{round_node['name']}-c{index}")
-        write_collection(round_dir, round_node["name"], channel_nodes, round_node["attributes"])
+    for tile_node in tile_nodes:
+        tile = iss / "tiles" / tile_node["name"]
+        rounds = []
+        for index, cycle in enumerate((1, 2)):
+            rounds.append(node("collection", f"round{index}", {"acquisition": {"id": f"iss-c{cycle}"}, "sp-ops:axis": {"name": "round", "index": index, "value": cycle}}))
+        write_collection(tile, tile_node["name"], rounds, tile_node["attributes"])
+        for round_node in rounds:
+            round_dir = tile / round_node["name"]
+            channel_nodes = []
+            for index, (name, role) in enumerate(channels):
+                attrs = {"sp-ops:axis": {"name": "c", "index": index}, "sp-ops:channels": [{"name": name, "role": role}]}
+                channel_nodes.append(node("multiscale", f"channel{index}", attrs))
+                write_multiscale(round_dir / f"channel{index}", rng.integers(0, 4000, (16, 16), dtype=np.uint16), YX, [1.3, 1.3], attrs, f"iss-{round_node['name']}-c{index}")
+            write_collection(round_dir, round_node["name"], channel_nodes, round_node["attributes"])
 
     pheno = well / "pheno"
     write_collection(pheno, "pheno", [node("collection", "tiles")], {"sp-ops:modality": "pheno", "acquisition": {"id": "pheno"}})
@@ -247,6 +286,8 @@ def build_synthetic_screen(root: Path) -> SyntheticScreen:
         labels=merged / "cells",
         overlay=merged / "overlay",
         iss_image=plate_processed / "A" / "1" / "iss" / "merged" / "image",
+        reads=plate_processed / "A" / "1" / "iss" / "merged" / "reads",
+        layout=raw_tile.parent / "layout",
         plate_raw=plate_raw,
         raw_tiles=raw_tile.parent,
         raw_tile=raw_tile,
