@@ -2,7 +2,7 @@
 
 > **Disclaimer:** This plugin was heavily vibecoded during the [scverse x Cell Painting hackathon](https://github.com/scverse/2026_08_hackathon_cellpainting) in Berlin Buch, 2026. It is a starting point for discussion and needs refinement before anyone relies on it.
 
-Status: phase 3 of [PLAN.md](PLAN.md). The package installs, registers a napari reader for `.zarr` paths and URLs, opens any node of an sp-ops store from a single channel image up to the screen root, and adds a navigator dock widget for picking wells and tiles. Layers carry channel names, colormaps, contrast limits, a `round` slider, tile placement from the `layout` polygons, and cell-table columns as label features. Groups outside an sp-ops store go to napari-ome-zarr unchanged.
+Status: phase 3 of [PLAN.md](PLAN.md). The package installs, registers a napari reader for `.zarr` paths and URLs, opens any node of an sp-ops store from a single channel image up to the screen root, and adds a navigator dock widget for picking wells and tiles. Layers carry channel names, colormaps and contrast limits from `omero` or the role palette, additive blending, a `round` slider, tile placement from the `layout` polygons, and cell-table columns as label features. Groups outside an sp-ops store go to napari-ome-zarr unchanged.
 
 `napari-sp-ops` is a napari reader plugin for sp-ops stores, the SpatialData layout for optical pooled screening described in this repository's `docs/`. It depends on [napari-ome-zarr](https://github.com/ome/napari-ome-zarr) and is meant to add what an sp-ops store needs on top of it: traversal of OME-NGFF RFC-8 collections, RFC-8 labels, channel names and colormaps from `sp-ops:channels`, a `round` slider for raw tiles, and tile placement from the `layout` shapes.
 
@@ -58,7 +58,7 @@ NAPARI_SP_OPS_POINTS_CAP=2000000
 
 Dropping a table directly warns and yields napari's "returned no data" error, because a table has no layer type. A table reaches napari through a labels layer instead. When the collection carries a computed edge in `sp-ops:relationships` between a labels element and a table on `value` or `label`, the table's `obs` columns become that labels layer's `features`, indexed by label value, so hovering a cell shows its barcode and measurements.
 
-Contrast limits are estimated from the lowest pyramid level when that level has at most about a million elements. Larger images leave contrast to napari.
+Image layers blend additively, so the channels of a tile compose into one picture. Colormaps and contrast limits come first from the node's OME `omero` block, channel by channel: `channels[i].color` becomes the colormap and `channels[i].window.start` and `end` the contrast limits. A channel without an `omero` entry takes the role palette, and its contrast limits are estimated from the lowest pyramid level when that level has at most about a million elements. Larger images with no window leave contrast to napari.
 
 ## Navigator
 

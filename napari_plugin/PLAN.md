@@ -109,6 +109,8 @@ D22. The navigator is a Qt widget over a Qt-free tree model. The model wraps `No
 
 D23. Two multiscale encodings are read. Besides the 0.4/0.5 `multiscales` list, an RFC-8 `multiscale` collection whose `nodes` are `singlescale` levels (the ome-zarr-py form) is accepted: axes come from the node's `coordinateSystems`, levels from the `singlescale` paths, and the level transform is the first `coordinateTransformations` entry of each level. Both conformant example stores use the first form and both collaborator stores the second, so the tests cover both.
 
+D24. Rendering hints from the store win over the role palette. When a multiscale node carries an OME `omero` block, each `channels[i].color` becomes that channel's colormap and each `window.start`, `end` its contrast limits; channels the block does not cover fall back to D15 and the lowest-level estimate. Image layers are opened with `additive` blending, labels and RGB overlays keep napari's defaults. Added 2026-09-04 after the P001 tiles opened with every non-nuclear channel green (a single-channel node always takes the first palette entry) and with no contrast limits (a 1200 by 1200 tile is above the estimate's size cap).
+
 ## Package layout
 
 ```text
@@ -125,6 +127,7 @@ napari_plugin/
 │   ├── traverse.py            # per-kind collection rules and the layer budget
 │   ├── settings.py            # defaults and environment overrides
 │   ├── channels.py            # sp-ops:channels to names and colormaps
+│   ├── rendering.py           # omero colors and windows over the role palette
 │   ├── images.py              # multiscale group to image, labels or rgb LayerData
 │   ├── rounds.py              # raw round stacking
 │   ├── placement.py           # layout and scene to per-tile translations
