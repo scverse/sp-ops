@@ -107,7 +107,7 @@ D21. Store detection claims a group when it or an ancestor up to the first `.zar
 
 D22. The navigator is a Qt widget over a Qt-free tree model. The model wraps `Node` objects and expands lazily; the widget only renders it and calls the reader, so the tree is testable without a display and the reader stays the single code path for opening.
 
-D23. Two multiscale encodings are read. Besides the 0.4/0.5 `multiscales` list, an RFC-8 `multiscale` collection whose `nodes` are `singlescale` levels (the ome-zarr-py form) is accepted: axes come from the node's `coordinateSystems`, levels from the `singlescale` paths, and the level transform is the first `coordinateTransformations` entry of each level. Both conformant example stores use the first form and both collaborator stores the second, so the tests cover both.
+D23. Two multiscale encodings are read, and the RFC-8 one is normative. RFC-8 defines `collection`, `multiscale` and `singlescale`, and a `Multiscale` node lists its levels as `singlescale` nodes, each with a `scale` or a `sequence` of `scale` and `translation` in its attributes and the axes in the multiscale's `coordinateSystems`; the RFC says this replaces the 0.5 `multiscales` list. The two collaborator stores written with ome-zarr-py use this form, and the open-questions page anticipated it in Q18 and Q28. The two conformant example stores from 2026-09-03 keep a 0.5 `multiscales` list inside RFC-8 collections, which is transitional; the reader keeps accepting it because napari-ome-zarr and every existing 0.5 image use it, and the tests cover both. The reader ignores the transform `input` field, so a level that references a per-level coordinate system instead of its own node `id` still opens.
 
 ## Package layout
 

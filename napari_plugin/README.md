@@ -66,7 +66,7 @@ The `sp-ops navigator` dock widget (Plugins menu) shows a store as a tree: stage
 
 ## Two ways to write an image
 
-The reader accepts both multiscale encodings seen in the wild. The 0.4/0.5 form keeps a `multiscales` list with `axes` and `datasets`. The RFC-8 form, which ome-zarr-py writes, has no `multiscales` key: the image node is a `multiscale` collection whose `nodes` are `singlescale` levels, each with a `coordinateTransformations` entry from its discrete array system to the image system, and the axes live only in the node's `coordinateSystems`. Both open the same way.
+The reader accepts both multiscale encodings seen in the wild. The 0.4/0.5 form keeps a `multiscales` list with `axes` and `datasets`; the example stores in this repository's conformance work still use it. The RFC-8 form, which the RFC text prescribes and ome-zarr-py writes, has no `multiscales` key: the image node is a `multiscale` collection whose `nodes` are `singlescale` levels, each with a `coordinateTransformations` entry from its discrete array system to the image system, and the axes live only in the node's `coordinateSystems`. Both open the same way.
 
 A `scene` on a well or modality collection is applied to the images it names, for `scale` and `translation` transforms (or a `sequence` of them) whose `input.path` points at the image. Other transform types are reported and skipped. Points that share a collection with an image are assumed to be in that image's pixel frame and take its scale and translation.
 
