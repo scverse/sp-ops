@@ -10,13 +10,14 @@ import numpy as np
 from napari.utils.transforms import Affine
 
 from napari_sp_ops import channels as channels_module
-from napari_sp_ops import nodes, rfc8, upstream
+from napari_sp_ops import nodes, rendering, rfc8, upstream
 
 LayerData = tuple[list[da.Array], dict[str, Any], str]
 
 RGB_LENGTHS = {3, 4}
 CONTRAST_MAX_ELEMENTS = 2**20
 CONTRAST_PERCENTILES = (1.0, 99.0)
+IMAGE_BLENDING = "additive"
 
 
 @dataclass
@@ -133,7 +134,9 @@ def read_multiscale(node: nodes.Node, placement: Placement | None = None) -> Lay
     """Return layer data for a multiscale node with sp-ops names, colormaps and placement.
 
     Singleton axes other than ``y`` and ``x`` are squeezed. Images with a
-    channel axis split into one layer per channel. A three- or four-long
+    channel axis split into one layer per channel. Image layers blend
+    additively; an ``omero`` block on the node overrides the role colormap and
+    the estimated contrast limits channel by channel. A three- or four-long
     ``uint8`` channel axis opens as one RGB layer with the channel moved
     last. RFC-8 ``labels`` open as a hidden labels layer.
     """
@@ -154,6 +157,7 @@ def read_multiscale(node: nodes.Node, placement: Placement | None = None) -> Lay
 
     kind = classify(node, axes, pyramid[0])
     channel_index = _channel_index(axes)
+    hints = rendering.parse_omero(group)
     sp_ops: dict[str, Any] = {**placement.metadata, "path": node.path, "node": node.name}
     metadata: dict[str, Any] = {"metadata": {"sp-ops": sp_ops}}
     layer_type = "image"
@@ -172,20 +176,22 @@ def read_multiscale(node: nodes.Node, placement: Placement | None = None) -> Lay
     elif channel_index is None:
         channel_list = channels_module.parse_channels(attributes, 1)
         metadata["name"] = placement.name_prefix + channel_list[0].name
-        metadata["colormap"] = channels_module.colormaps(channel_list)[0]
         sp_ops["channel"] = channel_list[0].to_dict()
-        limits = contrast_limits(pyramid[-1], None)
-        if limits:
+        colormaps, limits = rendering.apply(hints, channels_module.colormaps(channel_list), contrast_limits(pyramid[-1], None))
+        metadata["colormap"] = colormaps[0]
+        metadata["blending"] = IMAGE_BLENDING
+        if limits[0] is not None:
             metadata["contrast_limits"] = limits[0]
     else:
         count = pyramid[0].shape[channel_index]
         channel_list = channels_module.parse_channels(attributes, count)
         metadata["channel_axis"] = channel_index
         metadata["name"] = [placement.name_prefix + channel.name for channel in channel_list]
-        metadata["colormap"] = channels_module.colormaps(channel_list)
         metadata["metadata"] = [{"sp-ops": {**sp_ops, "channel": channel.to_dict()}} for channel in channel_list]
-        limits = contrast_limits(pyramid[-1], channel_index)
-        if limits:
+        colormaps, limits = rendering.apply(hints, channels_module.colormaps(channel_list), contrast_limits(pyramid[-1], channel_index))
+        metadata["colormap"] = colormaps
+        metadata["blending"] = IMAGE_BLENDING
+        if any(pair is not None for pair in limits):
             metadata["contrast_limits"] = limits
         transforms = _drop_axes(transforms, [channel_index])
         axes = [axis for index, axis in enumerate(axes) if index != channel_index]

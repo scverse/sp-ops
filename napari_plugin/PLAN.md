@@ -109,6 +109,8 @@ D22. The navigator is a Qt widget over a Qt-free tree model. The model wraps `No
 
 D23. Two multiscale encodings are read, and the RFC-8 one is normative. RFC-8 defines `collection`, `multiscale` and `singlescale`, and a `Multiscale` node lists its levels as `singlescale` nodes, each with a `scale` or a `sequence` of `scale` and `translation` in its attributes and the axes in the multiscale's `coordinateSystems`; the RFC says this replaces the 0.5 `multiscales` list. The two collaborator stores written with ome-zarr-py use this form, and the open-questions page anticipated it in Q18 and Q28. The two conformant example stores from 2026-09-03 keep a 0.5 `multiscales` list inside RFC-8 collections, which is transitional; the reader keeps accepting it because napari-ome-zarr and every existing 0.5 image use it, and the tests cover both. The reader ignores the transform `input` field, so a level that references a per-level coordinate system instead of its own node `id` still opens.
 
+D24. Rendering hints from the store win over the role palette. When a multiscale node carries an OME `omero` block, each `channels[i].color` becomes that channel's colormap and each `window.start`, `end` its contrast limits; channels the block does not cover fall back to D15 and the lowest-level estimate. Image layers are opened with `additive` blending, labels and RGB overlays keep napari's defaults. Added 2026-09-04 after the P001 tiles opened with every non-nuclear channel green (a single-channel node always takes the first palette entry) and with no contrast limits (a 1200 by 1200 tile is above the estimate's size cap).
+
 ## Package layout
 
 ```text
@@ -125,6 +127,7 @@ napari_plugin/
 │   ├── traverse.py            # per-kind collection rules and the layer budget
 │   ├── settings.py            # defaults and environment overrides
 │   ├── channels.py            # sp-ops:channels to names and colormaps
+│   ├── rendering.py           # omero colors and windows over the role palette
 │   ├── images.py              # multiscale group to image, labels or rgb LayerData
 │   ├── rounds.py              # raw round stacking
 │   ├── placement.py           # layout and scene to per-tile translations

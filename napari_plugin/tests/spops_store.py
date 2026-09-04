@@ -67,6 +67,7 @@ def write_multiscale(
     coordinate_system: str,
     translation: list[float] | None = None,
     coordinate_axes: list[dict] | None = None,
+    omero: dict | None = None,
 ) -> None:
     group_dir.mkdir(parents=True, exist_ok=True)
     zarr.create_array(store=str(group_dir / "0"), data=array, chunks=array.shape)
@@ -80,6 +81,8 @@ def write_multiscale(
         "multiscales": multiscales,
         "attributes": {**attributes, "coordinateSystems": [{"id": coordinate_system, "axes": coordinate_axes or axes}]},
     }
+    if omero is not None:
+        ome["omero"] = omero
     _write_group(group_dir, {"ome": ome})
 
 
