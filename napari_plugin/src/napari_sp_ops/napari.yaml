@@ -1,0 +1,11 @@
+name: napari-sp-ops
+display_name: napari sp-ops
+contributions:
+  commands:
+    - id: napari-sp-ops.get_reader
+      title: Open an sp-ops store
+      python_name: napari_sp_ops._reader:napari_get_reader
+  readers:
+    - command: napari-sp-ops.get_reader
+      filename_patterns: ["*.zarr", "*.zarr*"]
+      accepts_directories: true
