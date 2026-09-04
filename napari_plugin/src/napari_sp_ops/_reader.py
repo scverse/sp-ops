@@ -6,7 +6,7 @@ from typing import Any
 
 import zarr
 
-from napari_sp_ops import images, rfc8, upstream
+from napari_sp_ops import nodes, rfc8, traverse, upstream
 
 
 def napari_get_reader(path: str | list[str]) -> Callable | None:
@@ -29,16 +29,12 @@ def napari_get_reader(path: str | list[str]) -> Callable | None:
     if not rfc8.inside_sp_ops_store(group, str(path)):
         return upstream.read_ome_zarr(group)
 
-    def read(*_: Any, **__: Any) -> list[images.LayerData]:
-        return read_node(group)
+    def read(*_: Any, **__: Any) -> list[traverse.AnyLayerData]:
+        return read_node(group, str(path))
 
     return read
 
 
-def read_node(group: zarr.Group) -> list[images.LayerData]:
-    """Return the layers for one sp-ops node."""
-    node_type = rfc8.ome_type(group)
-    if node_type == "multiscale":
-        return [images.read_multiscale(group)]
-    warnings.warn(f"napari-sp-ops does not open {node_type or 'untyped'} nodes yet: {rfc8.node_name(group)}", stacklevel=2)
-    return []
+def read_node(group: zarr.Group, path: str) -> list[traverse.AnyLayerData]:
+    """Return the layers for one sp-ops node of any kind."""
+    return traverse.read_node(nodes.Node(group, path))
