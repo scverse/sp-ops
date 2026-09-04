@@ -28,10 +28,13 @@ YX = [
 ]
 ZYX = [{"name": "z", "type": "space", "unit": "micrometer"}, *YX]
 YXC = [*YX, {"name": "c", "type": "channel"}]
+TCZYX_LOWER = [{**axis, "name": axis["name"].lower()} for axis in TCZYX]
 
 
-def node(node_type: str, name: str, attributes: dict | None = None) -> dict:
+def node(node_type: str, name: str, attributes: dict | None = None, node_id: str | None = None) -> dict:
     descriptor: dict = {"type": node_type, "name": name, "path": {"type": "zarr", "path": f"./{name}"}}
+    if node_id:
+        descriptor["id"] = node_id
     if attributes:
         descriptor["attributes"] = attributes
     return descriptor
@@ -54,6 +57,7 @@ def write_multiscale(
     attributes: dict,
     coordinate_system: str,
     translation: list[float] | None = None,
+    coordinate_axes: list[dict] | None = None,
 ) -> None:
     group_dir.mkdir(parents=True, exist_ok=True)
     zarr.create_array(store=str(group_dir / "0"), data=array, chunks=array.shape)
@@ -65,7 +69,7 @@ def write_multiscale(
         "version": OME_VERSION,
         "type": "multiscale",
         "multiscales": multiscales,
-        "attributes": {**attributes, "coordinateSystems": [{"id": coordinate_system, "axes": axes}]},
+        "attributes": {**attributes, "coordinateSystems": [{"id": coordinate_system, "axes": coordinate_axes or axes}]},
     }
     payload = {"zarr_format": 3, "node_type": "group", "attributes": {"ome": ome}}
     (group_dir / "zarr.json").write_text(json.dumps(payload, indent=2))
@@ -109,7 +113,7 @@ def _processed_plate(plate: Path) -> None:
     write_collection(
         merged,
         "merged",
-        [node("multiscale", "image"), node("multiscale", "cells"), node("multiscale", "overlay")],
+        [node("multiscale", "image", node_id="pheno-merged-image"), node("multiscale", "cells"), node("multiscale", "overlay")],
         {"sp-ops:merged": {"source": []}},
     )
     rng = np.random.default_rng(0)
@@ -121,6 +125,7 @@ def _processed_plate(plate: Path) -> None:
         {"sp-ops:channels": [{"name": "GFP", "role": "stain"}, {"name": "nuclei_prediction", "role": "other"}]},
         "well",
         translation=[0.0, 0.0, 0.0, 15600.0, 15600.0],
+        coordinate_axes=TCZYX_LOWER,
     )
     write_multiscale(
         merged / "cells",
@@ -133,6 +138,7 @@ def _processed_plate(plate: Path) -> None:
         },
         "well",
         translation=[0.0, 0.0, 0.0, 15600.0, 15600.0],
+        coordinate_axes=TCZYX_LOWER,
     )
     write_multiscale(
         merged / "overlay",
