@@ -1,5 +1,6 @@
 """Leaf multiscale nodes open with sp-ops names, colormaps, squeezed axes and placement."""
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -8,7 +9,7 @@ import zarr
 from napari.components import ViewerModel
 from npe2 import PluginManager
 
-from napari_sp_ops import rfc8
+from napari_sp_ops import nodes, rfc8
 from napari_sp_ops.channels import Channel, colormaps, parse_channels
 from spops_store import YX, write_plain_multiscale
 
@@ -105,6 +106,8 @@ def test_detection_walks_up_past_metadata_less_directories(synthetic_screen):
     assert rfc8.parent_path("https://host/bucket/screen.zarr") == "https://host/bucket"
     assert rfc8.parent_path("https://host") is None
     assert rfc8.parent_path("/screen.zarr") is None
+    assert rfc8.parent_path(r"C:\data\screen.zarr\plate") == r"C:\data\screen.zarr"
+    assert rfc8.last_segment(r"C:\data\screen.zarr\plate") == "plate"
 
 
 def test_channel_palette_by_role():
@@ -144,3 +147,38 @@ def test_raw_example_leaves(raw_example):
     assert (layer.name, layer.colormap.name, tuple(layer.scale)) == ("DAPI_SBS", "blue", (1.3, 1.3))
     (layer,) = open_layers(well / "pheno" / "tiles" / "tile0" / "channel0")
     assert (layer.name, tuple(layer.axis_labels)) == ("AF750", ("z", "y", "x"))
+
+
+def _write_group(group_dir: Path, ome: dict) -> None:
+    group_dir.mkdir(parents=True, exist_ok=True)
+    (group_dir / "zarr.json").write_text(json.dumps({"zarr_format": 3, "node_type": "group", "attributes": {"ome": ome}}))
+
+
+def test_identity_transform_and_channel_first_rgb(synthetic_screen):
+    """Review regressions: an identity-only transform keeps unit scale, and RGB is found on any channel position."""
+    merged = synthetic_screen.merged
+    identity = merged / "identity"
+    zarr.create_array(store=str(identity / "0"), data=np.zeros((4, 16, 16), dtype=np.uint8), chunks=(4, 16, 16))
+    axes = [{"name": "c", "type": "channel"}, *YX]
+    multiscales = [{"axes": axes, "datasets": [{"path": "0", "coordinateTransformations": [{"type": "identity"}]}]}]
+    _write_group(identity, {"version": "0.5", "type": "multiscale", "multiscales": multiscales, "attributes": {"sp-ops:label_kind": "overlay"}})
+    (layer,) = open_layers(identity)
+    assert layer.rgb is True
+    assert full_resolution(layer) == (16, 16, 4)
+    assert tuple(layer.scale) == (1.0, 1.0)
+
+
+def test_inline_nested_nodes_and_generic_rfc8_leaf(tmp_path):
+    """An inline descriptor with its own nodes list resolves, and a generic RFC-8 leaf stays with napari-ome-zarr."""
+    store = tmp_path / "generic.zarr"
+    write_plain_multiscale(store / "img", np.zeros((8, 8), dtype=np.uint16), YX, [2.0, 2.0])
+    inline = {"type": "collection", "name": "inner", "nodes": [{"type": "multiscale", "name": "img", "path": {"type": "zarr", "path": "./img"}}]}
+    _write_group(store, {"version": "0.6-rfc8-draft", "type": "collection", "name": "generic", "nodes": [inline]})
+    root = nodes.Node(zarr.open_group(str(store), mode="r"), str(store))
+    (inner,) = root.children()
+    assert inner.name == "inner" and nodes.kind(inner) == "collection"
+    (image,) = inner.children()
+    assert image.name == "img" and nodes.kind(image) == "multiscale"
+    leaf = zarr.open_group(str(store / "img"), mode="r")
+    assert rfc8.inside_sp_ops_store(leaf, str(store / "img")) is False
+    assert rfc8.inside_sp_ops_store(root.group, str(store)) is True

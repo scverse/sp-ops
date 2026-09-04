@@ -36,5 +36,8 @@ def napari_get_reader(path: str | list[str]) -> Callable | None:
 
 
 def read_node(group: zarr.Group, path: str) -> list[traverse.AnyLayerData]:
-    """Return the layers for one sp-ops node of any kind."""
-    return traverse.read_node(nodes.Node(group, path))
+    """Return the layers for one sp-ops node; a node kind this plugin lacks goes to napari-ome-zarr."""
+    node = nodes.Node(group, path)
+    if nodes.kind(node) == "unknown":
+        return upstream.read_ome_zarr(group)()
+    return traverse.read_node(node)

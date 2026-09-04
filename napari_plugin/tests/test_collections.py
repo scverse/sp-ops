@@ -87,14 +87,14 @@ def test_screen_root_follows_the_stage_preference(synthetic_screen, monkeypatch)
     assert [layer.name for layer in layers][:3] == ["iss DAPI", "iss A", "iss reads"]
     assert len(layers) == 7
     monkeypatch.setenv("NAPARI_SP_OPS_STAGE", "raw")
-    assert Settings.from_env().stage_preference == "raw"
+    assert Settings.from_env().stage == "raw"
     raw_layers = open_layers(synthetic_screen.root)
     assert [layer.name for layer in raw_layers][:2] == ["iss layout", "iss tile0 DAPI (unaligned)"]
 
 
 def test_layer_budget_stops_recursion_and_names_the_skipped(synthetic_screen, monkeypatch):
     monkeypatch.setenv("NAPARI_SP_OPS_LAYER_BUDGET", "3")
-    with pytest.warns(UserWarning, match="stopped at 3 layers; skipped overlay"):
+    with pytest.warns(UserWarning, match=r"stopped after 3 layers \(budget 3\); skipped overlay, cells_features"):
         layers = open_layers(synthetic_screen.merged)
     assert [layer.name for layer in layers] == ["GFP", "nuclei_prediction", "cells"]
 

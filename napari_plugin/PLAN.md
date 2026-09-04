@@ -1,6 +1,6 @@
 # napari plugin for sp-ops stores
 
-Status: phase 2 implemented (PR #4 for phase 0, stacked PRs for phases 1 and 2). Written 2026-09-04 against napari-ome-zarr 0.10.0, napari 0.9.0 and the sp-ops specification at commit 362486d. The failure table was first measured on zarr 3.1.6 under Python 3.11 and is re-checked by the phase 0 baseline test on zarr 3.3.0 under Python 3.12.
+Status: phases 0 to 3 implemented as a stack of four pull requests (#4, #5, #6 and the phase 3 PR). Phase 4, the upstream proposals, is open. Written 2026-09-04 against napari-ome-zarr 0.10.0, napari 0.9.0 and the sp-ops specification at commit 362486d. The failure table was first measured on zarr 3.1.6 under Python 3.11 and is re-checked by the phase 0 baseline test on zarr 3.3.0 under Python 3.12.
 
 ## Summary
 
@@ -50,12 +50,12 @@ The rule for every collection is the same. Open the node that was dropped, recur
 | tile collection in `raw`, several rounds | one image layer per channel index with a `round` slider | rounds are stacked lazily with dask when every round of a channel index has the same shape and dtype; the cycle values and acquisition ids go into layer metadata; the layer name says `unaligned`; if shapes differ, fall back to one layer per round and channel |
 | tile collection in `processed` | image plus its points | `image` splits on `c`, keeps `round` as a slider labelled `round`; `peaks` becomes a points layer |
 | merged collection | image, every label raster hidden, points | `image` as above; RFC-8 labels become labels layers, hidden by default as napari-ome-zarr does; RGBA rasters (the processed example has three) become one RGB image layer each; `reads` becomes a points layer |
-| tiles collection | every tile placed in the well frame, plus the layout | tiles are translated by the `scene` transform when present, else by the minimum corner of their `layout` polygon; `layout` becomes a shapes layer of polygons with the `tile` index as a feature |
+| tiles collection | every tile placed in the well frame, plus the layout | tiles are translated by the minimum corner of their `layout` polygon (a `scene` is reported, not applied, per D17); `layout` becomes a shapes layer of polygons with the `tile` index as a feature |
 | modality collection | `merged` if present, else `tiles` | a setting flips the preference |
 | well collection | every modality | ISS and phenotyping overlay in physical units; without a modality registration transform they share only the origin |
 | plate collection | the first well by row then column, with a warning naming the other wells | the phase 3 navigator is the way to pick a well; a stitched plate grid like napari-ome-zarr's HCS view is not planned, because sp-ops wells have no fixed field grid |
 | screen collection | the `processed` plate of the first physical plate, else `raw`, then as plate | the stage preference is a setting |
-| table or shapes or points leaf dropped directly | points or shapes layer; a table opens nothing and warns | |
+| table or shapes or points leaf dropped directly | points or shapes layer; a table warns and opens nothing | |
 
 Axis handling for every image. Singleton axes whose type is not `space` y or x are squeezed, and scale, translation, axis labels and units are trimmed to match. The specification's decision D6 says writers omit such axes; the processed example keeps a singleton T and Z, so the reader tolerates them. Axis names are lower-cased for the labels shown in napari. The `round` axis has RFC-5 type `array`; napari-ome-zarr passes unknown axis types through as sliders, which is the wanted behaviour, and phase 1 confirms it on a synthetic store because neither example store has a processed multi-round image.
 
@@ -95,9 +95,19 @@ D15. Colormap palette. `nuclear` is `blue`; `base` cycles `green`, `red`, `magen
 
 D16. Settings are a frozen dataclass with defaults in `settings.py`, overridden by `NAPARI_SP_OPS_LAYER_BUDGET`, `NAPARI_SP_OPS_STAGE`, `NAPARI_SP_OPS_PREFER` and `NAPARI_SP_OPS_POINTS_CAP`. napari has no settings surface for reader plugins, and a widget-side settings panel is not worth its weight until the navigator in phase 3 exists.
 
-D17. Placement in phase 2 uses the `layout` polygons only. A `scene` on a collection is reported with a warning and not applied. The RFC-8 `Reference` adapter for napari-ome-zarr's `Scene` code waits for a store that writes a `scene`, which neither example does, and lands with the upstream work in phase 4. This narrows D6 for now.
+D17. Tiles are placed from the `layout` polygons. A `scene` on any ancestor collection is applied to the image it names when its transform is a `scale`, a `translation` or a `sequence` of those, padded to the image's axes by axis name; other transform types are reported and skipped. napari-ome-zarr's `Scene` graph code is not used, because RFC-8 references differ from what it expects. Revised 2026-09-04 after two collaborator stores written with ome-zarr-py put every placement in a well-level `scene`.
 
 D18. The traversal never opens a table group. A zarr v3 collection cannot list a zarr v2 AnnData child, and a table has no layer type. Phase 3 reads a table only through a computed edge to a labels element, by path.
+
+D19. Shapes coordinates are taken as written in the well frame, like `layout`. Points that share a collection with an image are taken to be in that image's pixel frame and receive its full-resolution scale and translation; a points element with no image sibling is taken as written. The specification does not say which frame `peaks` and `reads` use; the collaborator's scallops store writes pixels, and this rule is what makes them land on the spots. It should become a specification statement.
+
+D20. Label features come only from a computed key edge. A `suggested` edge or a spatial join is not evaluated, because the reader never computes joins. The table's `obs` is read through zarr directly, decoding AnnData arrays, string arrays and categoricals, so anndata is not a dependency. Tables above two million rows are skipped with a warning.
+
+D21. Store detection claims a group when it or an ancestor up to the first `.zarr` component carries an `sp-ops:` key, and otherwise only when the dropped group is itself an RFC-8 collection. A generic RFC-8 leaf image therefore keeps napari-ome-zarr's `omero` rendering, and a generic collection gets this plugin's traversal, which upstream cannot do. This narrows D3 and D14.
+
+D22. The navigator is a Qt widget over a Qt-free tree model. The model wraps `Node` objects and expands lazily; the widget only renders it and calls the reader, so the tree is testable without a display and the reader stays the single code path for opening.
+
+D23. Two multiscale encodings are read, and the RFC-8 one is normative. RFC-8 defines `collection`, `multiscale` and `singlescale`, and a `Multiscale` node lists its levels as `singlescale` nodes, each with a `scale` or a `sequence` of `scale` and `translation` in its attributes and the axes in the multiscale's `coordinateSystems`; the RFC says this replaces the 0.5 `multiscales` list. The two collaborator stores written with ome-zarr-py use this form, and the open-questions page anticipated it in Q18 and Q28. The two conformant example stores from 2026-09-03 keep a 0.5 `multiscales` list inside RFC-8 collections, which is transitional; the reader keeps accepting it because napari-ome-zarr and every existing 0.5 image use it, and the tests cover both. The reader ignores the transform `input` field, so a level that references a per-level coordinate system instead of its own node `id` still opens.
 
 ## Package layout
 
@@ -119,16 +129,21 @@ napari_plugin/
 │   ├── rounds.py              # raw round stacking
 │   ├── placement.py           # layout and scene to per-tile translations
 │   ├── vector.py              # parquet points and shapes to LayerData
-│   └── _widget.py             # phase 3 navigator
+│   ├── features.py            # obs columns of an edge-joined table as label features
+│   ├── navigator.py           # Qt-free lazy tree of a store
+│   └── _widget.py             # Qt dock widget over navigator.py
 └── tests/
     ├── conftest.py            # synthetic store fixture, optional real-store fixtures
     ├── test_baseline_upstream.py
     ├── test_images.py
     ├── test_collections.py
-    └── test_vector.py
+    ├── test_vector.py
+    ├── test_features.py
+    ├── test_navigator.py
+    └── test_url.py
 ```
 
-Each module stays under about 300 lines. Settings (layer budget, stage preference, merged versus tiles, points cap) are a small pydantic model read from napari's plugin settings, with defaults in one place.
+Each module stays under about 300 lines. Settings (layer budget, stage preference, merged versus tiles, points cap) follow D16: a frozen dataclass with defaults in one place and environment overrides.
 
 ## Phases
 
