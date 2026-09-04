@@ -14,6 +14,8 @@ def napari_get_reader(path: str | list[str]) -> Callable | None:
     Every group is handed to napari-ome-zarr unchanged.
     """
     if isinstance(path, list):
+        if not path:
+            return None
         if len(path) > 1:
             warnings.warn(f"napari-sp-ops opens one path at a time; using {path[0]}", stacklevel=2)
         path = path[0]
