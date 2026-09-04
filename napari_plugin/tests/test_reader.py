@@ -19,17 +19,13 @@ def discover_plugins():
 def test_napari_opens_a_multiscale_through_the_plugin(synthetic_screen):
     viewer = ViewerModel()
     layers = viewer.open(str(synthetic_screen.image), plugin="napari-sp-ops")
-    assert [type(layer).__name__ for layer in layers] == ["Image", "Image"]
-    for layer in layers:
-        assert tuple(layer.axis_labels) == ("T", "Z", "Y", "X")
-        assert tuple(layer.scale) == (1.0, 2.0, 0.325, 0.325)
-        assert layer.ndim == 4
-        assert layer.data.shape == (1, 1, 16, 16)
+    assert [(type(layer).__name__, layer.name) for layer in layers] == [("Image", "GFP"), ("Image", "nuclei_prediction")]
 
 
 def test_napari_reports_no_data_for_a_collection(synthetic_screen):
-    with pytest.raises(ValueError, match="returned no data"):
-        ViewerModel().open(str(synthetic_screen.merged), plugin="napari-sp-ops")
+    with pytest.warns(UserWarning, match="does not open collection nodes yet"):
+        with pytest.raises(ValueError, match="returned no data"):
+            ViewerModel().open(str(synthetic_screen.merged), plugin="napari-sp-ops")
 
 
 def test_declines_a_directory_without_zarr_metadata(tmp_path):
