@@ -1,0 +1,16 @@
+/* Wider code blocks for directory trees and JSON examples. */
+.bd-content pre {
+    font-size: 0.85em;
+    line-height: 1.35;
+}
+
+/* Directory-tree blocks keep box-drawing characters aligned. */
+.highlight-text pre,
+.highlight-none pre {
+    font-variant-ligatures: none;
+}
+
+/* Requirement keyword emphasis inside tables. */
+td code {
+    white-space: nowrap;
+}

@@ -1,0 +1,23 @@
+[project]
+name = "sp-ops"
+version = "0.1.0"
+description = "SpatialData specification for optical pooled screening (OPS) data"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = []
+
+[dependency-groups]
+docs = [
+    "sphinx>=8.1",
+    "sphinx-book-theme>=1.1",
+    "myst-parser>=4.0",
+    "sphinx-design>=0.6",
+    "sphinx-copybutton>=0.5",
+    "sphinxcontrib-bibtex>=2.6",
+    "sphinxcontrib-mermaid>=1.0",
+    "sphinx-autobuild",
+]
+
+[tool.uv]
+package = false
