@@ -1,6 +1,6 @@
 [project]
 name = "napari-sp-ops"
-version = "0.1.0.dev0"
+dynamic = ["version"]
 description = "napari reader for sp-ops stores, the SpatialData layout for optical pooled screening"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -34,8 +34,12 @@ dev = ["pytest>=8", "numpy"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "src/napari_sp_ops/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/napari_sp_ops"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
