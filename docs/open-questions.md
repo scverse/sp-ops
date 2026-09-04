@@ -311,16 +311,22 @@ the [](extension.md) registry and the [](layout.md) level table, and compares ev
 the source page it was written from. Advisories are checks this exercise suggests the specification
 should require, not ones it does.
 
+`experimentC_scallops` and `biohub_example` are built by `scripts/build_store.py`, which shares one
+converter and writes each store into its own folder under `stores/`. `experimentC` and
+`cpg0021_sample` still have their own scripts and are not ported yet.
+
 ```bash
+python scripts/build_store.py experimentC_scallops
+python scripts/build_store.py biohub_example
+
 python scripts/build_experimentC_zarr.py path/to/experimentC experimentC.zarr
-python scripts/build_experimentC_scallops_zarr.py path/to/experimentC_scallops \
-    path/to/experimentC_raw experimentC_scallops.zarr
-python scripts/build_biohub_zarr.py path/to/biohub_example biohub_example.zarr
 python scripts/build_cpg0021_zarr.py path/to/cpg0021_sample cpg0021_sample.zarr
 
+python scripts/check_sp_ops_zarr.py stores/experimentC_scallops/experimentC_scallops.zarr \
+    --scallops path/to/experimentC_scallops
+python scripts/check_sp_ops_zarr.py stores/biohub_example/biohub_example.zarr \
+    --zarr path/to/biohub_example
 python scripts/check_sp_ops_zarr.py experimentC.zarr --tiffs path/to/experimentC
-python scripts/check_sp_ops_zarr.py experimentC_scallops.zarr --scallops path/to/experimentC_scallops
-python scripts/check_sp_ops_zarr.py biohub_example.zarr --zarr path/to/biohub_example
 python scripts/check_sp_ops_zarr.py cpg0021_sample.zarr --nd2 path/to/cpg0021_sample/.../CP186A
 ```
 
@@ -333,6 +339,13 @@ python scripts/check_sp_ops_zarr.py cpg0021_sample.zarr --nd2 path/to/cpg0021_sa
 
 `experimentC_scallops` is the only store that does not check clean, and both results are findings
 rather than build defects.
+
+The two ported stores are written through [ome-zarr-py](https://github.com/ome/ome-zarr-py), which
+supplies the arrays and the pyramid while the metadata stays RFC-8 only. Two consequences are
+visible on disk and neither is checked: every pyramid level carries the Zarr v3 `dimension_names`
+the library writes, and levels above 0 come from its `local_mean` and `nearest` resampling rather
+than a 2x2 block mean, so a label level above 0 can differ by one row from a repeated `[::2]`
+subsample. Level 0 is unchanged, and it is the only level compared against the source.
 
 ## Requirements a dataset cannot meet
 
