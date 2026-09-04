@@ -15,8 +15,6 @@ dependencies = [
     "napari>=0.6",
     "napari-ome-zarr>=0.10,<0.11",
     "zarr>=3.1.5",
-    "dask[array]",
-    "numpy",
 ]
 
 [project.optional-dependencies]
@@ -30,7 +28,7 @@ Source = "https://github.com/scverse/sp-ops"
 Specification = "https://github.com/scverse/sp-ops/tree/main/docs"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "numpy"]
 
 [build-system]
 requires = ["hatchling"]
