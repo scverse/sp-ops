@@ -36,6 +36,12 @@ ROUND_CYX = [{"name": "round", "type": "array"}, {"name": "c", "type": "channel"
 TCZYX_LOWER = [{**axis, "name": axis["name"].lower()} for axis in TCZYX]
 
 
+def _write_group(group_dir: Path, attributes: dict) -> None:
+    group_dir.mkdir(parents=True, exist_ok=True)
+    payload = {"zarr_format": 3, "node_type": "group", "attributes": attributes}
+    (group_dir / "zarr.json").write_text(json.dumps(payload, indent=2))
+
+
 def node(node_type: str, name: str, attributes: dict | None = None, node_id: str | None = None) -> dict:
     descriptor: dict = {"type": node_type, "name": name, "path": {"type": "zarr", "path": f"./{name}"}}
     if node_id:
@@ -46,12 +52,10 @@ def node(node_type: str, name: str, attributes: dict | None = None, node_id: str
 
 
 def write_collection(group_dir: Path, name: str, nodes: list[dict], attributes: dict | None = None) -> None:
-    group_dir.mkdir(parents=True, exist_ok=True)
     ome: dict = {"version": OME_VERSION, "type": "collection", "name": name, "nodes": nodes}
     if attributes:
         ome["attributes"] = attributes
-    payload = {"zarr_format": 3, "node_type": "group", "attributes": {"ome": ome}}
-    (group_dir / "zarr.json").write_text(json.dumps(payload, indent=2))
+    _write_group(group_dir, {"ome": ome})
 
 
 def write_multiscale(
@@ -76,8 +80,7 @@ def write_multiscale(
         "multiscales": multiscales,
         "attributes": {**attributes, "coordinateSystems": [{"id": coordinate_system, "axes": coordinate_axes or axes}]},
     }
-    payload = {"zarr_format": 3, "node_type": "group", "attributes": {"ome": ome}}
-    (group_dir / "zarr.json").write_text(json.dumps(payload, indent=2))
+    _write_group(group_dir, {"ome": ome})
 
 
 @dataclass(frozen=True)
@@ -93,6 +96,7 @@ class SyntheticScreen:
     iss_image: Path
     reads: Path
     layout: Path
+    table: Path
     plate_raw: Path
     raw_tiles: Path
     raw_tile: Path
@@ -119,11 +123,17 @@ def _processed_plate(plate: Path) -> None:
     modality = well / "pheno"
     write_collection(modality, "pheno", [node("collection", "merged")], {"sp-ops:modality": "pheno", "acquisition": {"id": "pheno"}})
     merged = modality / "merged"
+    edge = {"from": "cells", "to": "cells_features", "method": "join", "on": {"left": "value", "right": "label"}, "status": "computed", "cardinality": "1:1"}
     write_collection(
         merged,
         "merged",
-        [node("multiscale", "image", node_id="pheno-merged-image"), node("multiscale", "cells"), node("multiscale", "overlay")],
-        {"sp-ops:merged": {"source": []}},
+        [node("multiscale", "image", node_id="pheno-merged-image"), node("multiscale", "cells"), node("multiscale", "overlay"), node("sp-ops:table", "cells_features")],
+        {"sp-ops:merged": {"source": []}, "sp-ops:relationships": {"version": SPEC_VERSION, "edges": [edge]}},
+    )
+    write_table(
+        merged / "cells_features",
+        {"label": np.array([1, 2, 3, 4]), "area": np.array([10.5, 20.0, 30.0, 40.0])},
+        {"barcode": (np.array([0, 1, 0, -1], dtype=np.int8), np.array(["ACGT", "TTGA"], dtype=np.dtypes.StringDType()))},
     )
     rng = np.random.default_rng(0)
     write_multiscale(
@@ -183,10 +193,7 @@ def _processed_iss(modality: Path) -> None:
 
 def write_element_group(group_dir: Path, element_type: str, extra: dict | None = None) -> None:
     """A leaf element group tagged with ``spatialdata_attrs.element_type`` and no ``ome`` key."""
-    group_dir.mkdir(parents=True, exist_ok=True)
-    attributes = {"spatialdata_attrs": {"element_type": element_type}, **(extra or {})}
-    payload = {"zarr_format": 3, "node_type": "group", "attributes": attributes}
-    (group_dir / "zarr.json").write_text(json.dumps(payload, indent=2))
+    _write_group(group_dir, {"spatialdata_attrs": {"element_type": element_type}, **(extra or {})})
 
 
 def write_layout(group_dir: Path, boxes: dict[int, tuple[float, float, float, float]]) -> None:
@@ -206,13 +213,28 @@ def write_points(group_dir: Path, xy: np.ndarray, columns: dict[str, list] | Non
     pq.write_table(pa.table(data), group_dir / "points.parquet")
 
 
+def write_table(group_dir: Path, columns: dict[str, np.ndarray], categorical: dict[str, tuple[np.ndarray, np.ndarray]] | None = None) -> None:
+    """An AnnData-in-zarr table (zarr v2) with ``obs`` columns and optional categoricals."""
+    attributes = {"encoding-type": "anndata", "encoding-version": "0.1.0", "spatialdata_attrs": {"element_type": "table"}}
+    table = zarr.create_group(str(group_dir), zarr_format=2, attributes=attributes)
+    order = [*columns, *(categorical or {})]
+    obs = table.create_group("obs", attributes={"encoding-type": "dataframe", "encoding-version": "0.2.0", "_index": "_index", "column-order": order})
+    length = len(next(iter(columns.values())))
+    obs.create_array("_index", data=np.array([f"cell{index}" for index in range(length)], dtype=np.dtypes.StringDType()))
+    for name, values in columns.items():
+        obs.create_array(name, data=values)
+    for name, (codes, categories) in (categorical or {}).items():
+        group = obs.create_group(name, attributes={"encoding-type": "categorical", "encoding-version": "0.2.0", "ordered": False})
+        group.create_array("codes", data=codes)
+        group.create_array("categories", data=categories)
+
+
 def write_plain_multiscale(group_dir: Path, array: np.ndarray, axes: list[dict], scale: list[float]) -> None:
     """An OME-NGFF 0.5 image with no RFC-8 type and no sp-ops keys."""
     group_dir.mkdir(parents=True, exist_ok=True)
     zarr.create_array(store=str(group_dir / "0"), data=array, chunks=array.shape)
     multiscales = [{"axes": axes, "datasets": [{"path": "0", "coordinateTransformations": [{"type": "scale", "scale": scale}]}]}]
-    payload = {"zarr_format": 3, "node_type": "group", "attributes": {"ome": {"version": "0.5", "multiscales": multiscales}}}
-    (group_dir / "zarr.json").write_text(json.dumps(payload, indent=2))
+    _write_group(group_dir, {"ome": {"version": "0.5", "multiscales": multiscales}})
 
 
 def _raw_plate(plate: Path) -> None:
@@ -288,6 +310,7 @@ def build_synthetic_screen(root: Path) -> SyntheticScreen:
         iss_image=plate_processed / "A" / "1" / "iss" / "merged" / "image",
         reads=plate_processed / "A" / "1" / "iss" / "merged" / "reads",
         layout=raw_tile.parent / "layout",
+        table=merged / "cells_features",
         plate_raw=plate_raw,
         raw_tiles=raw_tile.parent,
         raw_tile=raw_tile,
