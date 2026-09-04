@@ -1,0 +1,179 @@
+P001_spops.zarr (raw):        240 elements
+SpatialData object at /Users/macbook/ssd/biodata/ops/spops_conformant/P001_spops.zarr
+└── plate1_raw/ (1 element)
+    └── A/ (2 elements)
+        ├── 1/ (2 elements)
+        │   ├── iss/ (1 element)
+        │   │   └── tiles/ (3 elements)
+        │   │       ├── layout: [Shapes] GeoDataFrame (2, 2)
+        │   │       ├── tile0/ (11 elements)
+        │   │       │   ├── round0/ (5 elements)
+        │   │       │   │   ├── channel0: [Image2D] DataArray[cyx] (1, 1200, 1200)
+        │   │       │   │   ├── channel1: [Image2D] DataArray[cyx] (1, 1200, 1200)
+        │   │       │   │   └── ... 3 more
+        │   │       │   ├── round1/ (5 elements)
+        │   │       │   │   ├── channel0: [Image2D] DataArray[cyx] (1, 1200, 1200)
+        │   │       │   │   ├── channel1: [Image2D] DataArray[cyx] (1, 1200, 1200)
+        │   │       │   │   └── ... 3 more
+        │   │       │   └── ... 9 more
+        │   │       └── tile1/ (11 elements)
+        │   │           ├── round0/ (5 elements)
+        │   │           │   ├── channel0: [Image2D] DataArray[cyx] (1, 1200, 1200)
+        │   │           │   ├── channel1: [Image2D] DataArray[cyx] (1, 1200, 1200)
+        │   │           │   └── ... 3 more
+        │   │           ├── round1/ (5 elements)
+        │   │           │   ├── channel0: [Image2D] DataArray[cyx] (1, 1200, 1200)
+        │   │           │   ├── channel1: [Image2D] DataArray[cyx] (1, 1200, 1200)
+        │   │           │   └── ... 3 more
+        │   │           └── ... 9 more
+        │   └── pheno/ (1 element)
+        │       └── tiles/ (3 elements)
+        │           ├── layout: [Shapes] GeoDataFrame (2, 2)
+        │           ├── tile0/ (4 elements)
+        │           │   ├── channel0: [Image3D] DataArray[czyx] (1, 4, 2400, 2400)
+        │           │   ├── channel1: [Image3D] DataArray[czyx] (1, 4, 2400, 2400)
+        │           │   └── ... 2 more
+        │           └── tile1/ (4 elements)
+        │               ├── channel0: [Image3D] DataArray[czyx] (1, 4, 2400, 2400)
+        │               ├── channel1: [Image3D] DataArray[czyx] (1, 4, 2400, 2400)
+        │               └── ... 2 more
+        └── 2/ (2 elements)
+            ├── iss/ (1 element)
+            │   └── tiles/ (3 elements)
+            │       ├── layout: [Shapes] GeoDataFrame (2, 2)
+            │       ├── tile0/ (11 elements)
+            │       │   ├── round0/ (5 elements)
+            │       │   │   ├── channel0: [Image2D] DataArray[cyx] (1, 1200, 1200)
+            │       │   │   ├── channel1: [Image2D] DataArray[cyx] (1, 1200, 1200)
+            │       │   │   └── ... 3 more
+            │       │   ├── round1/ (5 elements)
+            │       │   │   ├── channel0: [Image2D] DataArray[cyx] (1, 1200, 1200)
+            │       │   │   ├── channel1: [Image2D] DataArray[cyx] (1, 1200, 1200)
+            │       │   │   └── ... 3 more
+            │       │   └── ... 9 more
+            │       └── tile1/ (11 elements)
+            │           ├── round0/ (5 elements)
+            │           │   ├── channel0: [Image2D] DataArray[cyx] (1, 1200, 1200)
+            │           │   ├── channel1: [Image2D] DataArray[cyx] (1, 1200, 1200)
+            │           │   └── ... 3 more
+            │           ├── round1/ (5 elements)
+            │           │   ├── channel0: [Image2D] DataArray[cyx] (1, 1200, 1200)
+            │           │   ├── channel1: [Image2D] DataArray[cyx] (1, 1200, 1200)
+            │           │   └── ... 3 more
+            │           └── ... 9 more
+            └── pheno/ (1 element)
+                └── tiles/ (3 elements)
+                    ├── layout: [Shapes] GeoDataFrame (2, 2)
+                    ├── tile0/ (4 elements)
+                    │   ├── channel0: [Image3D] DataArray[czyx] (1, 4, 2400, 2400)
+                    │   ├── channel1: [Image3D] DataArray[czyx] (1, 4, 2400, 2400)
+                    │   └── ... 2 more
+                    └── tile1/ (4 elements)
+                        ├── channel0: [Image3D] DataArray[czyx] (1, 4, 2400, 2400)
+                        ├── channel1: [Image3D] DataArray[czyx] (1, 4, 2400, 2400)
+                        └── ... 2 more
+with coordinate systems:
+    ▸ 'global', with elements:
+        └── plate1_raw/ (1 element)
+            └── A/ (2 elements)
+                ├── 1/ (2 elements)
+                │   ├── iss/ (1 element)
+                │   │   └── tiles/ (3 elements)
+                │   │       ├── layout
+                │   │       ├── tile0/ (11 elements)
+                │   │       │   ├── round0/ (5 elements)
+                │   │       │   │   ├── channel0
+                │   │       │   │   ├── channel1
+                │   │       │   │   └── ... 3 more
+                │   │       │   ├── round1/ (5 elements)
+                │   │       │   │   ├── channel0
+                │   │       │   │   ├── channel1
+                │   │       │   │   └── ... 3 more
+                │   │       │   └── ... 9 more
+                │   │       └── tile1/ (11 elements)
+                │   │           ├── round0/ (5 elements)
+                │   │           │   ├── channel0
+                │   │           │   ├── channel1
+                │   │           │   └── ... 3 more
+                │   │           ├── round1/ (5 elements)
+                │   │           │   ├── channel0
+                │   │           │   ├── channel1
+                │   │           │   └── ... 3 more
+                │   │           └── ... 9 more
+                │   └── pheno/ (1 element)
+                │       └── tiles/ (3 elements)
+                │           ├── layout
+                │           ├── tile0/ (4 elements)
+                │           │   ├── channel0
+                │           │   ├── channel1
+                │           │   └── ... 2 more
+                │           └── tile1/ (4 elements)
+                │               ├── channel0
+                │               ├── channel1
+                │               └── ... 2 more
+                └── 2/ (2 elements)
+                    ├── iss/ (1 element)
+                    │   └── tiles/ (3 elements)
+                    │       ├── layout
+                    │       ├── tile0/ (11 elements)
+                    │       │   ├── round0/ (5 elements)
+                    │       │   │   ├── channel0
+                    │       │   │   ├── channel1
+                    │       │   │   └── ... 3 more
+                    │       │   ├── round1/ (5 elements)
+                    │       │   │   ├── channel0
+                    │       │   │   ├── channel1
+                    │       │   │   └── ... 3 more
+                    │       │   └── ... 9 more
+                    │       └── tile1/ (11 elements)
+                    │           ├── round0/ (5 elements)
+                    │           │   ├── channel0
+                    │           │   ├── channel1
+                    │           │   └── ... 3 more
+                    │           ├── round1/ (5 elements)
+                    │           │   ├── channel0
+                    │           │   ├── channel1
+                    │           │   └── ... 3 more
+                    │           └── ... 9 more
+                    └── pheno/ (1 element)
+                        └── tiles/ (3 elements)
+                            ├── layout
+                            ├── tile0/ (4 elements)
+                            │   ├── channel0
+                            │   ├── channel1
+                            │   └── ... 2 more
+                            └── tile1/ (4 elements)
+                                ├── channel0
+                                ├── channel1
+                                └── ... 2 more
+Biohub_OPS0001_spops.zarr:    19 elements
+SpatialData object at /Users/macbook/ssd/biodata/ops/spops_conformant/Biohub_OPS0001_spops.zarr
+├── library: [Table] AnnData (4211, 0)
+├── perturbation_features: [Table] AnnData (1052, 66)
+└── plate1_processed/ (1 element)
+    └── A/ (1 element)
+        └── 1/ (1 element)
+            └── pheno/ (1 element)
+                └── merged/ (17 elements)
+                    ├── cell_seg: [Labels2D] DataTree[yx] (2048, 2048), (1024, 1024), (512, 512), (256, 256), (128, 128)
+                    ├── cells_features: [Table] AnnData (267449, 0)
+                    └── ... 15 more
+with coordinate systems:
+    ▸ 'global', with elements:
+        └── plate1_processed/ (1 element)
+            └── A/ (1 element)
+                └── 1/ (1 element)
+                    └── pheno/ (1 element)
+                        └── merged/ (16 elements)
+                            ├── cell_seg
+                            ├── focus3d_tubular_seg
+                            └── ... 14 more
+
+sp-ops:relationships edges (Biohub):
+  perturbation_features  --join(computed)-->  library
+  plate1_processed/A/1/pheno/merged/cells_features  --join(computed)-->  library
+  plate1_processed/A/1/pheno/merged/cells_features  --sjoin(suggested)-->  plate1_processed/A/1/pheno/merged/cell_seg
+check(): (no problems)
+
+synthetic round-axis image dims: ('round', 'c', 'y', 'x'), shape: (3, 2, 8, 8)
+img.sel(round=1, c=0) shape: (8, 8)

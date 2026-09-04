@@ -3,11 +3,38 @@ name = "sp-ops"
 version = "0.1.0"
 description = "SpatialData specification for optical pooled screening (OPS) data"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = { file = "LICENSE" }
-dependencies = []
+dependencies = [
+    # the RFC-8 collection reader, round/t axes, and sp-ops:relationships this spec's
+    # examples/ scripts exercise are not in any spatialdata release -- pinned to the tip
+    # of the experimental branch stacking them (LucaMarconato/spatialdata#1-#9).
+    "spatialdata",
+]
+
+[tool.uv.sources]
+spatialdata = { git = "https://github.com/LucaMarconato/spatialdata", rev = "7f59e1b2b3140fbb3846693fa33bf340272e3970" }
 
 [dependency-groups]
+convert = [
+    # ome-zarr-py >=0.19 is the first line that requires zarr>=3, i.e. the first
+    # that can write into the Zarr v3 stores this specification uses. It needs
+    # Python >=3.12, which is why requires-python moved.
+    "ome-zarr>=0.19.1",
+    "zarr>=3",
+    # NOT below 2026.3.0: ome_zarr/__init__.py gates USE_DASK_ARRAY_KWARGS on it,
+    # and writer.py drops `shards` from the array kwargs without warning when the
+    # gate is false, silently unsharding every store.
+    "dask>=2026.3.0",
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "anndata",
+    "geopandas",
+    "shapely",
+    "tifffile",
+    "scikit-image",
+]
 docs = [
     "sphinx>=8.1",
     "sphinx-book-theme>=1.1",
@@ -17,6 +44,16 @@ docs = [
     "sphinxcontrib-bibtex>=2.6",
     "sphinxcontrib-mermaid>=1.0",
     "sphinx-autobuild",
+]
+napari = [
+    # examples/try_napari.py; kept out of the base dependencies since it pulls in a Qt
+    # binding and the rest of napari's GUI stack. Pinned explicitly (not just a lower
+    # bound) to https://github.com/scverse/napari-spatialdata's current release --
+    # otherwise a resolver that can't fully verify the git-pinned spatialdata's version
+    # (see the spatialdata-side fallback_version fix) can silently fall back to the very
+    # old, incompatible 0.4.1.
+    "napari-spatialdata==0.7.2",
+    "pyqt6",
 ]
 
 [tool.uv]
