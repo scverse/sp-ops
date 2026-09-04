@@ -5,6 +5,6 @@ symbols re-exported here are the ones this plugin relies on, and the
 dependency is pinned to ``napari-ome-zarr>=0.10,<0.11`` for that reason.
 """
 
-from napari_ome_zarr.ome_zarr_reader import read_ome_zarr
+from napari_ome_zarr.ome_zarr_reader import read_ome_zarr, remove_axis_from_transform, transforms_to_affine
 
-__all__ = ["read_ome_zarr"]
+__all__ = ["read_ome_zarr", "remove_axis_from_transform", "transforms_to_affine"]
