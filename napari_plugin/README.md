@@ -2,7 +2,7 @@
 
 > **Disclaimer:** This plugin was heavily vibecoded during the [scverse x Cell Painting hackathon](https://github.com/scverse/2026_08_hackathon_cellpainting) in Berlin Buch, 2026. It is a starting point for discussion and needs refinement before anyone relies on it.
 
-Status: phase 0 of [PLAN.md](PLAN.md). The package installs, registers a napari reader for `.zarr` paths, and hands every group to napari-ome-zarr unchanged. sp-ops behaviour arrives in the later phases.
+Status: phase 1 of [PLAN.md](PLAN.md). The package installs, registers a napari reader for `.zarr` paths, and opens any image, label or overlay node of an sp-ops store with its channel names, colormaps, scale and translation. Collections open in phase 2. Groups outside an sp-ops store go to napari-ome-zarr unchanged.
 
 `napari-sp-ops` is a napari reader plugin for sp-ops stores, the SpatialData layout for optical pooled screening described in this repository's `docs/`. It depends on [napari-ome-zarr](https://github.com/ome/napari-ome-zarr) and is meant to add what an sp-ops store needs on top of it: traversal of OME-NGFF RFC-8 collections, RFC-8 labels, channel names and colormaps from `sp-ops:channels`, a `round` slider for raw tiles, and tile placement from the `layout` shapes.
 
@@ -29,7 +29,16 @@ napari-ome-zarr and napari-sp-ops both accept `.zarr` directories, so napari ask
 napari --plugin napari-sp-ops path/to/screen.zarr
 ```
 
-Anything napari-ome-zarr can open still opens through this plugin, because the group is passed to it unchanged. In phase 0 that means a multiscale image opens, and a collection such as a screen, plate, well or merged node fails with the "returned no data" error from napari's plugin loader, exactly as it does with napari-ome-zarr alone. Phase 2 adds the collections.
+A path is treated as sp-ops when the group, or any ancestor up to twelve levels above it, is an RFC-8 collection or carries an `sp-ops:*` key. Any other group is passed to napari-ome-zarr unchanged, so a plain OME-Zarr image still opens through this plugin.
+
+What opens in phase 1, one node at a time:
+
+- An image splits into one layer per channel, named and coloured from `sp-ops:channels`. Singleton axes other than `y` and `x` are squeezed, so a stored `(1, 6, 1, Y, X)` image shows six 2D layers and no length-one sliders. The dataset `translation` is applied, which napari-ome-zarr drops.
+- An RFC-8 label raster opens as a hidden labels layer at its own scale.
+- A raster with a trailing three- or four-long `uint8` channel axis opens as one RGB layer.
+- A `round` axis becomes a slider labelled `round`.
+
+Dropping a collection (screen, plate, well, modality, tiles, tile, round or merged) still fails with napari's "returned no data" error. Phase 2 adds the collections.
 
 ## Tests
 
