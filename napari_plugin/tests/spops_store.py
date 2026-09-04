@@ -118,7 +118,13 @@ def _processed_plate(plate: Path) -> None:
         },
     )
     well = plate / "A" / "1"
-    write_collection(well, "A/1", [node("collection", "iss"), node("collection", "pheno")], well_attrs)
+    scene = {
+        "coordinateSystems": [{"id": "well", "axes": YX}],
+        "coordinateTransformations": [
+            {"type": "translation", "translation": [100.0, 200.0], "input": {"id": "px", "path": {"type": "zarr", "path": "./iss/merged/image"}}, "output": {"id": "well"}}
+        ],
+    }
+    write_collection(well, "A/1", [node("collection", "iss"), node("collection", "pheno")], {**well_attrs, "scene": scene})
     _processed_iss(well / "iss")
     modality = well / "pheno"
     write_collection(modality, "pheno", [node("collection", "merged")], {"sp-ops:modality": "pheno", "acquisition": {"id": "pheno"}})
@@ -134,6 +140,7 @@ def _processed_plate(plate: Path) -> None:
         merged / "cells_features",
         {"label": np.array([1, 2, 3, 4]), "area": np.array([10.5, 20.0, 30.0, 40.0])},
         {"barcode": (np.array([0, 1, 0, -1], dtype=np.int8), np.array(["ACGT", "TTGA"], dtype=np.dtypes.StringDType()))},
+        {"gene": (np.array(["A", "B", "", "D"], dtype=np.dtypes.StringDType()), np.array([False, False, True, False]))},
     )
     rng = np.random.default_rng(0)
     write_multiscale(
@@ -178,16 +185,17 @@ def _processed_iss(modality: Path) -> None:
     )
     rng = np.random.default_rng(2)
     write_points(merged / "reads", np.array([[1.3, 2.6], [13.0, 6.5], [20.8, 19.5]]), {"read": ["ACGT", "TTGA", "ACGT"], "barcode": ["b1", "b2", "b1"]})
-    write_multiscale(
+    full = rng.integers(0, 4000, (2, 2, 16, 16), dtype=np.uint16)
+    write_rfc8_multiscale(
         merged / "image",
-        rng.integers(0, 4000, (2, 2, 16, 16), dtype=np.uint16),
+        [full, full[:, :, ::2, ::2]],
         ROUND_CYX,
-        [1.0, 1.0, 1.3, 1.3],
+        [[1.0, 1.0, 1.3, 1.3], [1.0, 1.0, 2.6, 2.6]],
         {
             "sp-ops:channels": [{"name": "DAPI", "role": "nuclear"}, {"name": "A", "role": "base"}],
             "sp-ops:rounds": [{"index": 0, "acquisition": {"id": "iss-c1"}}, {"index": 1, "acquisition": {"id": "iss-c2"}}],
         },
-        "well",
+        "px",
     )
 
 
@@ -213,11 +221,37 @@ def write_points(group_dir: Path, xy: np.ndarray, columns: dict[str, list] | Non
     pq.write_table(pa.table(data), group_dir / "points.parquet")
 
 
-def write_table(group_dir: Path, columns: dict[str, np.ndarray], categorical: dict[str, tuple[np.ndarray, np.ndarray]] | None = None) -> None:
-    """An AnnData-in-zarr table (zarr v2) with ``obs`` columns and optional categoricals."""
+def write_rfc8_multiscale(group_dir: Path, levels: list[np.ndarray], axes: list[dict], scales: list[list[float]], attributes: dict, coordinate_system: str) -> None:
+    """An RFC-8 multiscale written as ``singlescale`` nodes, each with its own array-to-image transform.
+
+    This is the form ome-zarr-py writes: no ``multiscales`` list, axes only in
+    the node's ``coordinateSystems``, and per-level ``coordinateTransformations``
+    from a discrete array system to the image system.
+    """
+    nodes = []
+    for index, (array, scale) in enumerate(zip(levels, scales, strict=True)):
+        zarr.create_array(store=str(group_dir / str(index)), data=array, chunks=array.shape)
+        transform: dict = {"type": "scale", "scale": scale, "input": {"id": f"array{index}"}, "output": {"id": coordinate_system}}
+        if index:
+            offset = [0.0 if axis["type"] != "space" else (scale[position] - scales[0][position]) / 2 for position, axis in enumerate(axes)]
+            transform = {"type": "sequence", "transformations": [{"type": "scale", "scale": scale}, {"type": "translation", "translation": offset}], "input": {"id": f"array{index}"}, "output": {"id": coordinate_system}}
+        level_axes = [{"name": axis["name"], "type": "array", "discrete": True} for axis in axes]
+        nodes.append({"type": "singlescale", "name": str(index), "path": {"type": "zarr", "path": f"./{index}"}, "attributes": {"coordinateSystems": [{"id": f"array{index}", "axes": level_axes}], "coordinateTransformations": [transform]}})
+    ome = {"version": "0.x", "type": "multiscale", "name": group_dir.name, "attributes": {**attributes, "coordinateSystems": [{"id": coordinate_system, "axes": axes}]}, "nodes": nodes}
+    _write_group(group_dir, {"ome": ome})
+
+
+def write_table(
+    group_dir: Path,
+    columns: dict[str, np.ndarray],
+    categorical: dict[str, tuple[np.ndarray, np.ndarray]] | None = None,
+    nullable: dict[str, tuple[np.ndarray, np.ndarray]] | None = None,
+    zarr_format: int = 2,
+) -> None:
+    """An AnnData-in-zarr table with ``obs`` columns, optional categoricals and optional nullable arrays."""
     attributes = {"encoding-type": "anndata", "encoding-version": "0.1.0", "spatialdata_attrs": {"element_type": "table"}}
-    table = zarr.create_group(str(group_dir), zarr_format=2, attributes=attributes)
-    order = [*columns, *(categorical or {})]
+    table = zarr.create_group(str(group_dir), zarr_format=zarr_format, attributes=attributes)
+    order = [*columns, *(categorical or {}), *(nullable or {})]
     obs = table.create_group("obs", attributes={"encoding-type": "dataframe", "encoding-version": "0.2.0", "_index": "_index", "column-order": order})
     length = len(next(iter(columns.values())))
     obs.create_array("_index", data=np.array([f"cell{index}" for index in range(length)], dtype=np.dtypes.StringDType()))
@@ -227,6 +261,10 @@ def write_table(group_dir: Path, columns: dict[str, np.ndarray], categorical: di
         group = obs.create_group(name, attributes={"encoding-type": "categorical", "encoding-version": "0.2.0", "ordered": False})
         group.create_array("codes", data=codes)
         group.create_array("categories", data=categories)
+    for name, (values, mask) in (nullable or {}).items():
+        group = obs.create_group(name, attributes={"encoding-type": "nullable-string-array", "encoding-version": "0.1.0"})
+        group.create_array("values", data=values)
+        group.create_array("mask", data=mask)
 
 
 def write_plain_multiscale(group_dir: Path, array: np.ndarray, axes: list[dict], scale: list[float]) -> None:

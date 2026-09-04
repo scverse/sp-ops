@@ -16,7 +16,7 @@ def discover_plugins():
 
 def test_obs_reader_decodes_arrays_strings_and_categoricals(synthetic_screen):
     columns = features.read_obs(zarr.open_group(str(synthetic_screen.table), mode="r"))
-    assert list(columns) == ["label", "area", "barcode"]
+    assert list(columns) == ["label", "area", "barcode", "gene"]
     assert columns["label"].tolist() == [1, 2, 3, 4]
     assert columns["barcode"].tolist() == ["ACGT", "TTGA", "ACGT", None]
 
@@ -30,7 +30,7 @@ def test_edge_lookup_finds_the_table_and_its_label_column(synthetic_screen):
 def test_labels_layer_carries_table_features(synthetic_screen):
     layers = ViewerModel().open(str(synthetic_screen.merged), plugin="napari-sp-ops")
     (cells,) = [layer for layer in layers if type(layer).__name__ == "Labels"]
-    assert list(cells.features.columns) == ["index", "area", "barcode"]
+    assert list(cells.features.columns) == ["index", "area", "barcode", "gene"]
     assert cells.features["index"].tolist() == [1, 2, 3, 4]
     assert cells._label_index == {1: 0, 2: 1, 3: 2, 4: 3}
     assert sum(getattr(layer, "rgb", False) for layer in layers) == 1
