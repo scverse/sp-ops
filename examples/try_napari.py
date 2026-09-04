@@ -2,16 +2,11 @@
 Open one of the sp-ops-conformant example stores in a real, interactive napari window,
 via napari-spatialdata.
 
-Same dependency as try_sp_ops_rfc8.py: an experimental `spatialdata` branch (the
-`vibecoded-experiment/sp-ops-example` stack, https://github.com/LucaMarconato/spatialdata/pull/8
-and below), plus `napari-spatialdata` and a Qt binding (PyQt5 or PyQt6) installed in the same
-environment, e.g.:
+Same `spatialdata` dependency as try_sp_ops_rfc8.py (see its docstring), plus
+`napari-spatialdata` and a Qt binding -- kept in the optional `napari` dependency group
+since they pull in the rest of napari's GUI stack:
 
-    uv pip install -e ".[extra]"   # from the spatialdata checkout, pulls in napari-spatialdata
-
-Then, from that checkout:
-
-    .venv/bin/python /path/to/sp-ops/examples/try_napari.py
+    uv run --group napari python examples/try_napari.py
 
 This opens a real window (do not set QT_QPA_PLATFORM=offscreen/minimal for this -- on macOS
 that backend has no working OpenGL context and napari segfaults on `Viewer()` construction;

@@ -4,14 +4,11 @@ RFC-8 collection reader, and the nested/truncated SpatialData repr.
 
 These aren't implemented in a release of `spatialdata` -- they're a stack of experimental
 branches on https://github.com/LucaMarconato/spatialdata:
-https://github.com/LucaMarconato/spatialdata/pull/1 (through #8), topped by
-`vibecoded-experiment/sp-ops-example`. To run this script, set up that branch's dev venv and
-point Python at it, e.g.:
+https://github.com/LucaMarconato/spatialdata/pull/1 (through #9), topped by
+`vibecoded-experiment/sp-ops-version-fallback`. `pyproject.toml` pins that branch's tip as
+this repo's `spatialdata` dependency, so from a checkout of this repo:
 
-    git clone https://github.com/LucaMarconato/spatialdata
-    cd spatialdata && git checkout vibecoded-experiment/sp-ops-example
-    uv venv .venv --python 3.13 && uv pip install -e .
-    .venv/bin/python /path/to/sp-ops/examples/try_sp_ops_rfc8.py
+    uv run python examples/try_sp_ops_rfc8.py
 
 Its captured output lives alongside it in try_sp_ops_rfc8_output.txt.
 
