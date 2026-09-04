@@ -82,6 +82,7 @@ class SyntheticScreen:
     labels: Path
     overlay: Path
     plate_raw: Path
+    raw_tiles: Path
     raw_tile: Path
     raw_round: Path
     raw_channel_yx: Path
@@ -209,6 +210,7 @@ def build_synthetic_screen(root: Path) -> SyntheticScreen:
         labels=merged / "cells",
         overlay=merged / "overlay",
         plate_raw=plate_raw,
+        raw_tiles=raw_tile.parent,
         raw_tile=raw_tile,
         raw_round=raw_tile / "round0",
         raw_channel_yx=raw_tile / "round0" / "channel0",

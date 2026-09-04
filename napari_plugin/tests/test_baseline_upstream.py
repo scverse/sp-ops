@@ -24,7 +24,16 @@ def only_layer(path) -> tuple:
     return layers[0]
 
 
-COLLECTION_NODES = ["root", "plate_processed", "well", "modality", "merged", "plate_raw", "raw_tile", "raw_round"]
+COLLECTION_NODES = ["root", "plate_processed", "well", "modality", "merged", "plate_raw", "raw_tiles", "raw_tile", "raw_round"]
+
+# attribute, channel_axis, axis_labels, scale, shape of the full-resolution array
+LEAF_IMAGES = [
+    ("image", 1, ("T", "Z", "Y", "X"), [1.0, 2.0, 0.325, 0.325], (1, 2, 1, 16, 16)),
+    ("labels", 1, ("T", "Z", "Y", "X"), [1.0, 2.0, 0.65, 0.65], (1, 1, 1, 16, 16)),
+    ("overlay", 2, ("y", "x"), [1.0, 1.0], (16, 16, 4)),
+    ("raw_channel_yx", None, ("y", "x"), [1.3, 1.3], (16, 16)),
+    ("raw_channel_zyx", None, ("z", "y", "x"), [1.5, 0.325, 0.325], (2, 16, 16)),
+]
 
 
 @pytest.mark.parametrize("attribute", COLLECTION_NODES)
@@ -32,40 +41,17 @@ def test_collection_yields_no_layers(synthetic_screen, attribute):
     assert upstream_layers(getattr(synthetic_screen, attribute)) == []
 
 
-def test_processed_image_splits_channels_and_keeps_singleton_axes(synthetic_screen):
-    data, meta, layer_type = only_layer(synthetic_screen.image)
+@pytest.mark.parametrize(("attribute", "channel_axis", "axis_labels", "scale", "shape"), LEAF_IMAGES)
+def test_leaf_opens_as_unnamed_image_layer(synthetic_screen, attribute, channel_axis, axis_labels, scale, shape):
+    """Labels and RGBA overlays come back as plain image layers; nothing gets a name or colormap."""
+    data, meta, layer_type = only_layer(getattr(synthetic_screen, attribute))
     assert layer_type == "image"
-    assert meta["channel_axis"] == 1
-    assert meta["axis_labels"] == ("T", "Z", "Y", "X")
-    assert meta["scale"] == [1.0, 2.0, 0.325, 0.325]
+    assert meta.get("channel_axis") == channel_axis
+    assert meta["axis_labels"] == axis_labels
+    assert meta["scale"] == scale
     assert meta.get("name") is None
     assert "colormap" not in meta
-    assert data[0].shape == (1, 2, 1, 16, 16)
-
-
-def test_rfc8_labels_open_as_an_image_layer(synthetic_screen):
-    _, meta, layer_type = only_layer(synthetic_screen.labels)
-    assert layer_type == "image"
-    assert meta["channel_axis"] == 1
-
-
-def test_rgba_overlay_opens_as_four_channels(synthetic_screen):
-    data, meta, layer_type = only_layer(synthetic_screen.overlay)
-    assert layer_type == "image"
-    assert meta["channel_axis"] == 2
-    assert data[0].shape == (16, 16, 4)
-
-
-def test_raw_channel_opens_unnamed(synthetic_screen):
-    _, meta, _ = only_layer(synthetic_screen.raw_channel_yx)
-    assert meta["axis_labels"] == ("y", "x")
-    assert meta["scale"] == [1.3, 1.3]
-    assert "channel_axis" not in meta
-    assert meta.get("name") is None
-
-    _, meta, _ = only_layer(synthetic_screen.raw_channel_zyx)
-    assert meta["axis_labels"] == ("z", "y", "x")
-    assert meta["scale"] == [1.5, 0.325, 0.325]
+    assert data[0].shape == shape
 
 
 def test_well_path_resolves_without_intermediate_metadata(synthetic_screen):
@@ -84,6 +70,7 @@ def test_well_path_resolves_without_intermediate_metadata(synthetic_screen):
 def test_processed_example_matches_synthetic_baseline(processed_example):
     merged = processed_example / "plate1_processed" / "A" / "1" / "pheno" / "merged"
     assert upstream_layers(processed_example) == []
+    assert upstream_layers(processed_example / "library") == []
     assert upstream_layers(merged) == []
     _, meta, layer_type = only_layer(merged / "image")
     assert (layer_type, meta["channel_axis"], meta["axis_labels"]) == ("image", 1, ("T", "Z", "Y", "X"))
@@ -94,11 +81,13 @@ def test_processed_example_matches_synthetic_baseline(processed_example):
 
 
 def test_raw_example_matches_synthetic_baseline(raw_example):
-    tile = raw_example / "plate1_raw" / "A" / "1" / "iss" / "tiles" / "tile0"
+    tiles = raw_example / "plate1_raw" / "A" / "1" / "iss" / "tiles"
     assert upstream_layers(raw_example) == []
-    assert upstream_layers(tile) == []
-    assert upstream_layers(tile / "round0") == []
-    _, meta, _ = only_layer(tile / "round0" / "channel0")
+    assert upstream_layers(tiles) == []
+    assert upstream_layers(tiles / "layout") == []
+    assert upstream_layers(tiles / "tile0") == []
+    assert upstream_layers(tiles / "tile0" / "round0") == []
+    _, meta, _ = only_layer(tiles / "tile0" / "round0" / "channel0")
     assert meta["axis_labels"] == ("y", "x")
     _, meta, _ = only_layer(raw_example / "plate1_raw" / "A" / "1" / "pheno" / "tiles" / "tile0" / "channel0")
     assert meta["axis_labels"] == ("z", "y", "x")

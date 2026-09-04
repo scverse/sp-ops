@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -11,12 +12,17 @@ def synthetic_screen(tmp_path_factory: pytest.TempPathFactory) -> SyntheticScree
 
 
 def _example_store(variable: str) -> Path:
+    """Resolve an environment variable to the root of a conformant sp-ops store."""
     value = os.environ.get(variable)
     if not value:
         pytest.skip(f"{variable} is not set")
-    store = Path(value)
-    if not (store / "zarr.json").is_file():
+    store = Path(value).expanduser()
+    metadata = store / "zarr.json"
+    if not metadata.is_file():
         pytest.skip(f"{variable}={store} has no zarr.json")
+    attributes = json.loads(metadata.read_text()).get("attributes", {}).get("ome", {}).get("attributes", {})
+    if "sp-ops:spec" not in attributes:
+        pytest.skip(f"{variable}={store} is not the root of an sp-ops screen")
     return store
 
 
