@@ -13,8 +13,8 @@ screen → plate (one per physical plate and stage) → well → modality → ti
 | plate | `plate1_raw`, `plate1_intermediate`, `plate1_processed` | one physical plate at one stage: as acquired, pipeline intermediates, or analysis-ready | MUST have at least one per physical plate; `raw` SHOULD, `intermediate` MAY, `processed` MAY |
 | well | `A/1` | one well, RFC-8 `well` attribute | MUST have at least one per plate collection |
 | modality | `iss`, `pheno` | in situ sequencing (ISS) or phenotyping; each has its own tile grid | MUST have at least one per well |
-| tiles | `tiles` | the tile layout and one collection per field of view | MUST in `raw`; MAY in `processed` |
-| tile | `tile0`, `tile1`, ... | one field of view | MUST have at least one under `tiles` |
+| tiles | `tiles` | the tile layout, tile-granularity tables, and, when the stage materialises per-tile images, one collection per field of view | MUST in `raw`; MAY in `intermediate` and `processed` |
+| tile | `tile0`, `tile1`, ... | one field of view | MUST have at least one under `tiles` if it holds per-tile images; a `tiles` collection MAY hold only `layout` and tile-granularity tables, with no tile collections, when the stage has no per-tile product, for example a stitch stage that goes straight from raw tiles to a merged image |
 | merged | `merged` | the stitched well image and what was computed on it | MAY; a processed modality MUST have `tiles` or `merged` or both |
 | round | `round0`, `round1`, ... | one imaging pass; present in `raw` only when the modality has more than one round | MUST in `raw` when the modality has more than one round |
 | channel | `channel0`, `channel1`, ... | one wavelength; present only in `raw`, where channels are not yet aligned | MUST in `raw` |
@@ -142,7 +142,7 @@ A plate collection MAY omit wells it has no data for. The stages `raw`, `interme
 
 ## Modalities, tiles, and merged images
 
-A modality collection has two children. `tiles/` holds the `layout` shapes element and one `tile<i>` collection per field of view. `merged/` holds the stitched image and everything computed on it. The two are kept apart because a tile image is a few thousand pixels on a side and a merged image is a few hundred thousand, so they need different chunking, sharding, and pyramid depth, and a viewer opens one or the other. The ISS and phenotyping grids are independent: they may differ in tile count, size, and overlap.
+A modality collection has two children. `tiles/` holds the `layout` shapes element, any tile-granularity tables, and, when the stage produces per-tile images, one `tile<i>` collection per field of view — a stage that stitches without materialising a per-tile product, such as an `intermediate` stitch stage, MAY omit the tile collections and keep only `layout` and its tables. `merged/` holds the stitched image and everything computed on it. The two are kept apart because a tile image is a few thousand pixels on a side and a merged image is a few hundred thousand, so they need different chunking, sharding, and pyramid depth, and a viewer opens one or the other. The ISS and phenotyping grids are independent: they may differ in tile count, size, and overlap.
 
 `layout` has one polygon per tile in the well coordinate system and a `tile` column holding the tile index.
 
