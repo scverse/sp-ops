@@ -31,6 +31,7 @@ def test_napari_reports_no_data_for_a_collection(synthetic_screen):
         ViewerModel().open(str(synthetic_screen.merged), plugin="napari-sp-ops")
 
 
-def test_declines_a_path_that_is_not_a_zarr_group(tmp_path):
+def test_declines_a_directory_without_zarr_metadata(tmp_path):
+    """napari rejects missing paths itself; a directory with no zarr.json is what reaches the reader."""
     with pytest.warns(UserWarning, match="could not open"):
-        assert napari_get_reader(str(tmp_path / "missing.zarr")) is None
+        assert napari_get_reader(str(tmp_path)) is None
