@@ -1,13 +1,11 @@
 """napari reader entry point for sp-ops stores."""
 
-import logging
+import warnings
 from collections.abc import Callable
 
 import zarr
 
 from napari_sp_ops import upstream
-
-log = logging.getLogger(__name__)
 
 
 def napari_get_reader(path: str | list[str]) -> Callable | None:
@@ -17,11 +15,11 @@ def napari_get_reader(path: str | list[str]) -> Callable | None:
     """
     if isinstance(path, list):
         if len(path) > 1:
-            log.warning("napari-sp-ops opens one path at a time; using %s", path[0])
+            warnings.warn(f"napari-sp-ops opens one path at a time; using {path[0]}", stacklevel=2)
         path = path[0]
     try:
         group = zarr.open_group(path, mode="r")
     except Exception as exc:
-        log.debug("%s is not a zarr group: %s", path, exc)
+        warnings.warn(f"napari-sp-ops could not open {path} as a zarr group: {exc}", stacklevel=2)
         return None
     return upstream.read_ome_zarr(group)
