@@ -26,3 +26,15 @@ The spec's `raw`/`processed` reference stores are runnable against an experiment
 - [`try_napari.py`](examples/try_napari.py) opens one of the stores in a real, interactive
   [napari](https://napari.org) window via
   [napari-spatialdata](https://github.com/scverse/napari-spatialdata).
+
+## Visualization
+
+[`visualization/`](visualization/) renders the relationships graph (`sp-ops:relationships`)
+and the transformations graph (coordinate systems and the transforms between them) of any
+conformant store, as a static SVG and as a self-contained interactive HTML page. Reads
+`zarr.json` directly, no store-reading dependency required:
+
+```bash
+uv sync --group viz
+uv run python visualization/render_graphs.py --store /path/to/some_store.zarr --out-dir visualization/output
+```
