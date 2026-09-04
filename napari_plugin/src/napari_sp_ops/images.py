@@ -21,7 +21,7 @@ class Placement:
     """Extra layer-level context a collection passes down to its leaves."""
 
     name_prefix: str = ""
-    translation: list[float] | None = None
+    translation_yx: tuple[float, float] | None = None
     visible: bool | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -74,8 +74,6 @@ def read_multiscale(group: zarr.Group, placement: Placement | None = None) -> La
     datasets = rfc8.ome(group)["multiscales"][0]["datasets"]
     pyramid = [da.from_zarr(group[dataset["path"]]) for dataset in datasets]
     transforms = rfc8.dataset_transforms(group)
-    if placement.translation is not None:
-        transforms.append({"type": "translation", "translation": list(placement.translation)})
 
     squeezed = [index for index, axis in enumerate(axes) if pyramid[0].shape[index] == 1 and not axis.is_yx]
     if squeezed:
@@ -118,6 +116,9 @@ def read_multiscale(group: zarr.Group, placement: Placement | None = None) -> La
     if placement.visible is not None and "visible" not in metadata:
         metadata["visible"] = placement.visible
     scale, translate = _scale_and_translate(transforms, len(axes))
+    if placement.translation_yx is not None:
+        translate[-2] += placement.translation_yx[0]
+        translate[-1] += placement.translation_yx[1]
     metadata["scale"] = scale
     metadata["translate"] = translate
     metadata["axis_labels"] = tuple(axis.name.lower() for axis in axes)

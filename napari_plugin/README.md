@@ -2,7 +2,7 @@
 
 > **Disclaimer:** This plugin was heavily vibecoded during the [scverse x Cell Painting hackathon](https://github.com/scverse/2026_08_hackathon_cellpainting) in Berlin Buch, 2026. It is a starting point for discussion and needs refinement before anyone relies on it.
 
-Status: phase 1 of [PLAN.md](PLAN.md). The package installs, registers a napari reader for `.zarr` paths, and opens any image, label or overlay node of an sp-ops store with its channel names, colormaps, scale and translation. Collections open in phase 2. Groups outside an sp-ops store go to napari-ome-zarr unchanged.
+Status: phase 2 of [PLAN.md](PLAN.md). The package installs, registers a napari reader for `.zarr` paths, and opens any node of an sp-ops store, from a single channel image up to the screen root, with channel names, colormaps, a `round` slider, tile placement from the `layout` polygons, and the layout itself as a shapes layer. Groups outside an sp-ops store go to napari-ome-zarr unchanged.
 
 `napari-sp-ops` is a napari reader plugin for sp-ops stores, the SpatialData layout for optical pooled screening described in this repository's `docs/`. It depends on [napari-ome-zarr](https://github.com/ome/napari-ome-zarr) and is meant to add what an sp-ops store needs on top of it: traversal of OME-NGFF RFC-8 collections, RFC-8 labels, channel names and colormaps from `sp-ops:channels`, a `round` slider for raw tiles, and tile placement from the `layout` shapes.
 
@@ -31,14 +31,32 @@ napari --plugin napari-sp-ops path/to/screen.zarr
 
 A path is treated as sp-ops when the group, or any ancestor up to twelve levels above it, is an RFC-8 collection or carries an `sp-ops:*` key. Any other group is passed to napari-ome-zarr unchanged, so a plain OME-Zarr image still opens through this plugin.
 
-What opens in phase 1, one node at a time:
+What opens for a leaf node:
 
 - An image splits into one layer per channel, named and coloured from `sp-ops:channels`. Singleton axes other than `y` and `x` are squeezed, so a stored `(1, 6, 1, Y, X)` image shows six 2D layers and no length-one sliders. The dataset `translation` is applied, which napari-ome-zarr drops.
 - An RFC-8 label raster opens as a hidden labels layer at its own scale.
 - A raster with a trailing three- or four-long `uint8` channel axis opens as one RGB layer.
 - A `round` axis becomes a slider labelled `round`.
 
-Dropping a collection (screen, plate, well, modality, tiles, tile, round or merged) still fails with napari's "returned no data" error. Phase 2 adds the collections.
+What opens for a collection. The reader follows the `nodes` list of the dropped collection and recurses, following the rules of the mapping table in [PLAN.md](PLAN.md):
+
+- A raw `round` gives one layer per channel, named `round0 (cycle 1) DAPI`.
+- A raw `tile` stacks its rounds lazily, one layer per channel with a `round` slider and `(unaligned)` in the name. Nothing is resampled.
+- `tiles` places every tile at the minimum corner of its `layout` polygon and adds the layout as a shapes layer with the tile index as text.
+- `merged` opens the image, every label raster hidden, RGBA rasters as RGB, and points such as `reads`. Tables open nothing.
+- A `modality` opens `merged` when present, else `tiles`. A `well` opens every modality with the modality name as a layer prefix.
+- A `plate` opens its first well by row then column and warns with the names of the others. A `screen` opens the `processed` plate when it has one, else the first plate.
+
+Four settings are read from environment variables, with these defaults:
+
+```bash
+NAPARI_SP_OPS_LAYER_BUDGET=64   # stop recursing after this many napari layers and warn with the skipped node names
+NAPARI_SP_OPS_STAGE=processed   # which plate stage a screen root opens
+NAPARI_SP_OPS_PREFER=merged     # or tiles, for a modality that has both
+NAPARI_SP_OPS_POINTS_CAP=2000000
+```
+
+Dropping a table directly yields napari's "returned no data" error, because a table has no layer type. Phase 3 uses tables to feed a labels layer's features.
 
 ## Tests
 

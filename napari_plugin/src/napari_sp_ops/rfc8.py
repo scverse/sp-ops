@@ -6,7 +6,8 @@ this module knows about sp-ops beyond the ``sp-ops:`` key prefix, so it is the
 candidate for an upstream proposal to napari-ome-zarr.
 """
 
-from dataclasses import dataclass
+import warnings
+from dataclasses import dataclass, field
 from typing import Any
 
 import zarr
@@ -107,3 +108,51 @@ def dataset_transforms(group: zarr.Group) -> list[dict[str, Any]]:
     """Return every coordinate transformation of the full-resolution dataset."""
     dataset = ome(group)["multiscales"][0]["datasets"][0]
     return [dict(transform) for transform in dataset.get("coordinateTransformations", [])]
+
+
+@dataclass(frozen=True)
+class NodeRef:
+    """One entry of an RFC-8 collection's ``nodes`` list."""
+
+    type: str
+    name: str
+    path: str
+    id: str | None = None
+    attributes: dict[str, Any] = field(default_factory=dict)
+
+
+def child_refs(group: zarr.Group) -> list[NodeRef]:
+    """Return the node descriptors of a collection, skipping entries without a zarr path."""
+    refs: list[NodeRef] = []
+    for entry in ome(group).get("nodes", []):
+        path = entry.get("path", {})
+        if path.get("type", "zarr") != "zarr" or "path" not in path:
+            warnings.warn(f"napari-sp-ops skips node {entry.get('name')!r}: no zarr path", stacklevel=2)
+            continue
+        refs.append(NodeRef(entry.get("type", ""), entry.get("name", path["path"]), path["path"], entry.get("id"), entry.get("attributes") or {}))
+    return refs
+
+
+def resolve_child_path(path: str, relative: str) -> str:
+    """Join an RFC-8 relative node path onto the string path of its collection."""
+    base = path.rstrip("/")
+    for part in relative.split("/"):
+        if part in ("", "."):
+            continue
+        if part == "..":
+            parent = parent_path(base)
+            if parent is None:
+                raise ValueError(f"{relative!r} climbs above {path!r}")
+            base = parent
+        else:
+            base = f"{base}/{part}"
+    return base
+
+
+def open_child(group: zarr.Group, path: str, ref: NodeRef) -> tuple[zarr.Group, str]:
+    """Open a child node by its descriptor, returning the group and its string path."""
+    child_path = resolve_child_path(path, ref.path)
+    relative = ref.path.lstrip("./")
+    if ".." not in ref.path and relative:
+        return group[relative], child_path
+    return zarr.open_group(child_path, mode="r"), child_path

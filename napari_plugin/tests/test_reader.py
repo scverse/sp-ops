@@ -22,10 +22,14 @@ def test_napari_opens_a_multiscale_through_the_plugin(synthetic_screen):
     assert [(type(layer).__name__, layer.name) for layer in layers] == [("Image", "GFP"), ("Image", "nuclei_prediction")]
 
 
-def test_napari_reports_no_data_for_a_collection(synthetic_screen):
-    with pytest.warns(UserWarning, match="does not open collection nodes yet"):
-        with pytest.raises(ValueError, match="returned no data"):
-            ViewerModel().open(str(synthetic_screen.merged), plugin="napari-sp-ops")
+def test_napari_reports_no_data_for_a_table(synthetic_screen):
+    """A table has no napari layer type, so dropping one directly yields napari's no-data error."""
+    from spops_store import write_element_group
+
+    table = synthetic_screen.merged / "cells_features"
+    write_element_group(table, "table")
+    with pytest.raises(ValueError, match="returned no data"):
+        ViewerModel().open(str(table), plugin="napari-sp-ops")
 
 
 def test_declines_a_directory_without_zarr_metadata(tmp_path):

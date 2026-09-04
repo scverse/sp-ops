@@ -1,6 +1,6 @@
 # napari plugin for sp-ops stores
 
-Status: phase 1 implemented (PR #4 for phase 0, stacked PR for phase 1). Written 2026-09-04 against napari-ome-zarr 0.10.0, napari 0.9.0 and the sp-ops specification at commit 362486d. The failure table was first measured on zarr 3.1.6 under Python 3.11 and is re-checked by the phase 0 baseline test on zarr 3.3.0 under Python 3.12.
+Status: phase 2 implemented (PR #4 for phase 0, stacked PRs for phases 1 and 2). Written 2026-09-04 against napari-ome-zarr 0.10.0, napari 0.9.0 and the sp-ops specification at commit 362486d. The failure table was first measured on zarr 3.1.6 under Python 3.11 and is re-checked by the phase 0 baseline test on zarr 3.3.0 under Python 3.12.
 
 ## Summary
 
@@ -49,7 +49,7 @@ The rule for every collection is the same. Open the node that was dropped, recur
 | round collection in `raw` | one image layer per channel | names carry the round index and cycle value, for example `round0 (cycle 1) DAPI_SBS`; channels overlay at the origin because raw channels are unaligned and no transform exists |
 | tile collection in `raw`, several rounds | one image layer per channel index with a `round` slider | rounds are stacked lazily with dask when every round of a channel index has the same shape and dtype; the cycle values and acquisition ids go into layer metadata; the layer name says `unaligned`; if shapes differ, fall back to one layer per round and channel |
 | tile collection in `processed` | image plus its points | `image` splits on `c`, keeps `round` as a slider labelled `round`; `peaks` becomes a points layer |
-| merged collection | image, every label raster hidden, points | `image` as above; RFC-8 labels become labels layers, hidden by default as napari-ome-zarr does; RGBA rasters become one RGB image layer; `reads` becomes a points layer |
+| merged collection | image, every label raster hidden, points | `image` as above; RFC-8 labels become labels layers, hidden by default as napari-ome-zarr does; RGBA rasters (the processed example has three) become one RGB image layer each; `reads` becomes a points layer |
 | tiles collection | every tile placed in the well frame, plus the layout | tiles are translated by the `scene` transform when present, else by the minimum corner of their `layout` polygon; `layout` becomes a shapes layer of polygons with the `tile` index as a feature |
 | modality collection | `merged` if present, else `tiles` | a setting flips the preference |
 | well collection | every modality | ISS and phenotyping overlay in physical units; without a modality registration transform they share only the origin |
@@ -93,6 +93,12 @@ D14. Detection opens the dropped group, then up to twelve ancestors by shortenin
 
 D15. Colormap palette. `nuclear` is `blue`; `base` cycles `green`, `red`, `magenta`, `cyan` in array order; `stain` alternates `green` and `magenta`; everything else, and any channel whose `channel_type` is `labelfree` or `predicted`, is `gray`. The table is the four constants at the top of `channels.py`.
 
+D16. Settings are a frozen dataclass with defaults in `settings.py`, overridden by `NAPARI_SP_OPS_LAYER_BUDGET`, `NAPARI_SP_OPS_STAGE`, `NAPARI_SP_OPS_PREFER` and `NAPARI_SP_OPS_POINTS_CAP`. napari has no settings surface for reader plugins, and a widget-side settings panel is not worth its weight until the navigator in phase 3 exists.
+
+D17. Placement in phase 2 uses the `layout` polygons only. A `scene` on a collection is reported with a warning and not applied. The RFC-8 `Reference` adapter for napari-ome-zarr's `Scene` code waits for a store that writes a `scene`, which neither example does, and lands with the upstream work in phase 4. This narrows D6 for now.
+
+D18. The traversal never opens a table group. A zarr v3 collection cannot list a zarr v2 AnnData child, and a table has no layer type. Phase 3 reads a table only through a computed edge to a labels element, by path.
+
 ## Package layout
 
 ```text
@@ -105,7 +111,9 @@ napari_plugin/
 │   ├── _reader.py             # napari_get_reader: detect sp-ops, else delegate
 │   ├── upstream.py            # the only module importing napari_ome_zarr internals
 │   ├── rfc8.py                # attributes lookup, Collection traversal, Reference adapter
-│   ├── nodes.py               # dataclasses for the sp-ops node kinds and their attributes
+│   ├── nodes.py               # Node wrapper and kind classification from attributes
+│   ├── traverse.py            # per-kind collection rules and the layer budget
+│   ├── settings.py            # defaults and environment overrides
 │   ├── channels.py            # sp-ops:channels to names and colormaps
 │   ├── images.py              # multiscale group to image, labels or rgb LayerData
 │   ├── rounds.py              # raw round stacking
@@ -130,7 +138,7 @@ Phase 0, scaffold and baseline. Create the package, the uv environment on Python
 
 Phase 1, leaf images. Implement the `ome.attributes` lookup, RFC-8 labels detection, `sp-ops:channels` names and colormaps, the singleton squeeze, and RGBA detection. Acceptance on the processed example: `merged/image` opens as six named layers with colormaps, no length-one sliders, and the store's 15600 µm translation applied; `cell_seg` opens as a hidden labels layer at 0.65 µm; `grid_overlay` opens as one RGB layer. On the raw example: a channel multiscale opens with its channel name. On the synthetic store: an image with axes round,c,y,x opens with a slider labelled `round`.
 
-Phase 2, collections. Implement `Collection` traversal, the per-kind rules in the mapping table, round stacking, layout placement, the layout shapes layer, and points. Acceptance on the raw example: dropping a tile gives five layers with an eleven-step `round` slider; dropping `tiles` gives both tiles side by side at 1.3 µm with the layout polygons over them; dropping the well adds the phenotyping tiles inside the ISS footprint at 0.325 µm. On the processed example: dropping `merged` gives the image, twelve hidden labels layers, and the two overlays; dropping the screen root gives the same via the stage rule. In both, the layer budget stops recursion with a logged list.
+Phase 2, collections. Implement `Collection` traversal, the per-kind rules in the mapping table, round stacking, layout placement, the layout shapes layer, and points. Acceptance on the raw example: dropping a tile gives five layers with an eleven-step `round` slider; dropping `tiles` gives both tiles side by side at 1.3 µm with the layout polygons over them; dropping the well adds the phenotyping tiles inside the ISS footprint at 0.325 µm. On the processed example: dropping `merged` gives the image, twelve hidden labels layers, and the three RGBA overlays; dropping the screen root gives the same via the stage rule. In both, the layer budget stops recursion with a logged list.
 
 Phase 3, navigation and features. A dock widget shows the store as a tree (stage, plate, well, modality, tiles or merged, tile, round) with checkboxes and an add button, so a user opens one well of a plate without re-dropping. When a merged collection has a computed edge from a labels element to a table on `value` and `label`, the table's `obs` columns become the labels layer's `features`. Contrast limits come from the lowest pyramid level. Opening by HTTP or S3 URL is exercised against one example store served locally.
 
