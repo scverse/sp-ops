@@ -95,17 +95,19 @@ D15. Colormap palette. `nuclear` is `blue`; `base` cycles `green`, `red`, `magen
 
 D16. Settings are a frozen dataclass with defaults in `settings.py`, overridden by `NAPARI_SP_OPS_LAYER_BUDGET`, `NAPARI_SP_OPS_STAGE`, `NAPARI_SP_OPS_PREFER` and `NAPARI_SP_OPS_POINTS_CAP`. napari has no settings surface for reader plugins, and a widget-side settings panel is not worth its weight until the navigator in phase 3 exists.
 
-D17. Placement in phase 2 uses the `layout` polygons only. A `scene` on a collection is reported with a warning and not applied. The RFC-8 `Reference` adapter for napari-ome-zarr's `Scene` code waits for a store that writes a `scene`, which neither example does, and lands with the upstream work in phase 4. This narrows D6 for now.
+D17. Tiles are placed from the `layout` polygons. A `scene` on any ancestor collection is applied to the image it names when its transform is a `scale`, a `translation` or a `sequence` of those, padded to the image's axes by axis name; other transform types are reported and skipped. napari-ome-zarr's `Scene` graph code is not used, because RFC-8 references differ from what it expects. Revised 2026-09-04 after two collaborator stores written with ome-zarr-py put every placement in a well-level `scene`.
 
 D18. The traversal never opens a table group. A zarr v3 collection cannot list a zarr v2 AnnData child, and a table has no layer type. Phase 3 reads a table only through a computed edge to a labels element, by path.
 
-D19. Points and shapes coordinates are taken as written, in the element's own coordinate system, and the tile offset goes to the layer's `translate`. The specification does not say whether `peaks` and `reads` are in pixels or micrometres; the reader assumes the element's `coordinateSystem` is the well frame in micrometres, like `layout`. If a writer stores pixel coordinates, the layer needs a `scale`, which is an open question for the specification.
+D19. Shapes coordinates are taken as written in the well frame, like `layout`. Points that share a collection with an image are taken to be in that image's pixel frame and receive its full-resolution scale and translation; a points element with no image sibling is taken as written. The specification does not say which frame `peaks` and `reads` use; the collaborator's scallops store writes pixels, and this rule is what makes them land on the spots. It should become a specification statement.
 
 D20. Label features come only from a computed key edge. A `suggested` edge or a spatial join is not evaluated, because the reader never computes joins. The table's `obs` is read through zarr directly, decoding AnnData arrays, string arrays and categoricals, so anndata is not a dependency. Tables above two million rows are skipped with a warning.
 
 D21. Store detection claims a group when it or an ancestor up to the first `.zarr` component carries an `sp-ops:` key, and otherwise only when the dropped group is itself an RFC-8 collection. A generic RFC-8 leaf image therefore keeps napari-ome-zarr's `omero` rendering, and a generic collection gets this plugin's traversal, which upstream cannot do. This narrows D3 and D14.
 
 D22. The navigator is a Qt widget over a Qt-free tree model. The model wraps `Node` objects and expands lazily; the widget only renders it and calls the reader, so the tree is testable without a display and the reader stays the single code path for opening.
+
+D23. Two multiscale encodings are read. Besides the 0.4/0.5 `multiscales` list, an RFC-8 `multiscale` collection whose `nodes` are `singlescale` levels (the ome-zarr-py form) is accepted: axes come from the node's `coordinateSystems`, levels from the `singlescale` paths, and the level transform is the first `coordinateTransformations` entry of each level. Both conformant example stores use the first form and both collaborator stores the second, so the tests cover both.
 
 ## Package layout
 

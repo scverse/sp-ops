@@ -64,6 +64,12 @@ Contrast limits are estimated from the lowest pyramid level when that level has 
 
 The `sp-ops navigator` dock widget (Plugins menu) shows a store as a tree: stage, plate, well, modality, tiles or merged, tile, round, down to the leaves. It expands one collection at a time, so a plate with hundreds of wells costs one metadata read per expanded node. Tick any nodes and press "Add selected" to open them through the reader, which is how you open one well of a plate without dropping its folder. The path field is prefilled from the first sp-ops layer already in the viewer. The widget needs a Qt binding, so install with the `qt` extra.
 
+## Two ways to write an image
+
+The reader accepts both multiscale encodings seen in the wild. The 0.4/0.5 form keeps a `multiscales` list with `axes` and `datasets`. The RFC-8 form, which ome-zarr-py writes, has no `multiscales` key: the image node is a `multiscale` collection whose `nodes` are `singlescale` levels, each with a `coordinateTransformations` entry from its discrete array system to the image system, and the axes live only in the node's `coordinateSystems`. Both open the same way.
+
+A `scene` on a well or modality collection is applied to the images it names, for `scale` and `translation` transforms (or a `sequence` of them) whose `input.path` points at the image. Other transform types are reported and skipped. Points that share a collection with an image are assumed to be in that image's pixel frame and take its scale and translation.
+
 ## Remote stores
 
 Paths may be `http(s)://` or `s3://` URLs. Store detection walks up the URL to the first `.zarr` component, children open through the same store object, and layout and points parquet files are read through fsspec, so credentials given to the store carry over. The test suite serves the synthetic store over HTTP to cover this.
