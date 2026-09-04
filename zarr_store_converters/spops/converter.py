@@ -1,13 +1,19 @@
 """The shared skeleton of a store builder.
 
-Deliberately thin. The datasets do not share a traversal -- one loops modalities
-and stages, the other is straight-line over a single well -- so forcing a
-`for well: for modality:` template on both would mean hooks that return nothing
-for most of the grid. What they do share is the three-step dance every level of
-the hierarchy performs: create the group, build the children (which need the
-group), then write the parent's `ome` with those children as its `nodes`. That is
-what `collection()` captures, and the named helpers below are three lines each
-over it.
+Deliberately thin above `raw`. The processed datasets do not share a traversal
+-- one loops modalities and stages, the other is straight-line over a single
+well -- so forcing a `for well: for modality:` template on both would mean hooks
+that return nothing for most of the grid. What they do share is the three-step
+dance every level of the hierarchy performs: create the group, build the children
+(which need the group), then write the parent's `ome` with those children as its
+`nodes`. That is what `collection()` captures, and the named helpers below are
+three lines each over it.
+
+`raw` is the exception, and `raw_tiles` does loop for you. Below the tile the
+shape is not a per-dataset choice: layout.md fixes it as tile -> [round ->]
+channel, one multiscale per channel, with the round level present only when the
+modality has more than one. A delivery varies in where the pixels come from, not
+in that shape, so the loop takes a `read` callback and owns everything else.
 
 The element writers are re-exposed as methods only to bind the per-dataset
 pixel size, chunking and coordinate-system id once instead of at every call.
@@ -21,6 +27,7 @@ from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import ClassVar
 
+import geopandas as gpd
 import zarr
 
 from . import elements
@@ -199,6 +206,7 @@ class ScreenConverter(abc.ABC):
                                children=children)
 
     def tile(self, tiles: zarr.Group, group_name: str, *, index: int,
+             site: int | str | None = None,
              children: Children = _no_children,
              extra_attributes: dict | None = None,
              node_attributes: dict | None = None,
@@ -207,19 +215,114 @@ class ScreenConverter(abc.ABC):
 
         The group name is not derived from the index: a delivery may name its
         tiles by acquisition site while `sp-ops:tile.index` is the position in
-        the modality's own grid. See Q5. `extra_attributes` carries whatever a
-        delivery records beside the index, such as that site id.
+        the modality's own grid, so `site` records the acquisition's own
+        identifier alongside it. See Q5. `extra_attributes` carries anything
+        else a delivery notes about a field of view.
 
         `children` may return nothing. A stitch stage has no per-tile product,
         so its tile collections are empty, and that is a finding rather than
         something to pad or drop. See Q33.
         """
         attrs: dict = {"sp-ops:tile": {"index": index}}
+        if site is not None:
+            attrs["sp-ops:tile"]["site"] = site
         attrs.update(extra_attributes or {})
         return self.collection(tiles, group_name, attributes=attrs,
                                children=children,
                                node_attributes=node_attributes,
                                element_id=element_id)
+
+    # --------------------------------------------------------------------- raw
+
+    def raw_round(self, tile: zarr.Group, name: str, *, index: int,
+                  value: int | float | str, acquisition: str,
+                  children: Children) -> dict:
+        """One imaging pass inside a raw tile.
+
+        The index is the position along the modality's round order and `value`
+        the label the acquisition carried, which are not the same number when a
+        cycle is missing. See D3.
+        """
+        return self.collection(tile, name, children=children, attributes={
+            "acquisition": {"id": acquisition},
+            "sp-ops:axis": {"name": "round", "index": index, "value": value}})
+
+    def raw_channel(self, parent: zarr.Group, name: str, *, index: int,
+                    channel: str, role: str, **kw) -> dict:
+        """One wavelength, its own `(y, x)` multiscale in its own frame.
+
+        Raw channels are not assumed co-registered, so each is a separate
+        element rather than one plane of a `(c, y, x)` array. See D5.
+        """
+        kw.setdefault("axis_names", ("y", "x"))
+        return self.image(parent, name, attributes={
+            "sp-ops:axis": {"name": "c", "index": index},
+            "sp-ops:channels": [{"name": channel, "role": role}]}, **kw)
+
+    def raw_tiles(self, modality: zarr.Group, *, layout_id: str,
+                  layout: gpd.GeoDataFrame, tiles: Sequence[tuple[str, int, object]],
+                  channels: Sequence[tuple[str, str]], read: Callable,
+                  rounds: Sequence[tuple[str, int, object, str]] | None = None,
+                  tables: Sequence[tuple[str, object]] = (),
+                  edges: list[dict] | None = None, **image_kw) -> dict:
+        """A raw modality's whole `tiles` collection.
+
+        `rounds` is None for a single-round modality, which puts the channel
+        multiscales directly under the tile -- layout.md gives the round level
+        only when a modality has more than one. The two shapes are otherwise
+        identical, which is why they share this loop.
+
+        `tiles` is one `(group name, index, site)` triple per field of view.
+        `read(tile_index, round_index)` returns the `(c, y, x)` stack of one
+        acquisition, so the dataset owns the file format and this owns the
+        traversal. `round_index` is None for a single-round modality.
+        """
+        def channel_nodes(parent: zarr.Group, tile_index: int,
+                          round_index: int | None) -> list[dict]:
+            stack = read(tile_index, round_index)
+            if len(stack) != len(channels):
+                raise ValueError(
+                    f"tile {tile_index} round {round_index}: {len(stack)} planes "
+                    f"for {len(channels)} declared channels")
+            return [self.raw_channel(parent, f"channel{c}", index=c, channel=name,
+                                     role=role, data=plane, **image_kw)
+                    for c, ((name, role), plane) in enumerate(zip(channels, stack))]
+
+        def tile_children(tile: zarr.Group, index: int) -> list[dict]:
+            if rounds is None:
+                return channel_nodes(tile, index, None)
+            return [self.raw_round(tile, rname, index=ri, value=value,
+                                   acquisition=acq,
+                                   children=lambda r, i=index, j=ri: channel_nodes(r, i, j))
+                    for rname, ri, value, acq in rounds]
+
+        def children(group: zarr.Group) -> list[dict]:
+            nodes = [self.shapes(group, "layout", layout, element_id=layout_id)]
+            nodes += [self.table(group, name, obs) for name, obs in tables]
+            for name, index, site in tiles:
+                log.info("  %s/%s", group.path, name)
+                nodes.append(self.tile(
+                    group, name, index=index, site=site,
+                    children=lambda t, i=index: tile_children(t, i)))
+            return nodes
+
+        return self.tiles(modality, layout_id=layout_id, children=children,
+                          edges=edges)
+
+    # ------------------------------------------------------------------ scene
+
+    def scene(self, transforms: list[dict], *, cs_id: str = "well") -> dict:
+        """The `scene` attribute declaring one shared frame and what maps into it.
+
+        The frame is spatial only: `round` and `c` pass through unchanged, and
+        the specification's own examples show the spatial part alone. See Q45.
+        """
+        return {
+            "coordinateSystems": [{"id": cs_id, "axes": [
+                {"name": "y", "type": "space", "unit": "micrometer"},
+                {"name": "x", "type": "space", "unit": "micrometer"}]}],
+            "coordinateTransformations": transforms,
+        }
 
     # ---------------------------------------------------------------- elements
 

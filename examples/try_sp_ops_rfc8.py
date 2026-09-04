@@ -28,17 +28,25 @@ import numpy as np
 import spatialdata as sd
 from spatialdata.models import Image2DModel
 
-OPS_DIR = Path("/Users/rushin.gindra/Documents/Research/OPS-sandbox/stores/biohub_example")
+OPS_DIR = Path("/Users/rushin.gindra/Documents/Research/OPS-sandbox/stores/")
 
 
 def main() -> None:
     # --- RFC-8 reader: two real conformant stores ---
     # --- repr: nested, truncated tree instead of a flat dump of all elements ---
-    # p001 = sd.read_zarr(OPS_DIR / "P001_spops.zarr")
-    # print(f"P001_spops.zarr (raw):        {len(p001._elements)} elements")
-    # print(p001)
+    p001 = sd.read_zarr(OPS_DIR / "P001_Brieflow" / "P001_spops.zarr")
+    print(f"P001_spops.zarr (raw):        {len(p001._elements)} elements")
+    print(p001)
 
-    biohub = sd.read_zarr(OPS_DIR / "biohub_example.zarr")
+    feldman_expC = sd.read_zarr(OPS_DIR / "experimentC_scallops" / "experimentC_scallops.zarr")
+    print(f"experimentC_scallops.zarr:    {len(feldman_expC._elements)} elements")
+    print(feldman_expC)
+
+    cpg_periscope = sd.read_zarr(OPS_DIR / "cpg0021_sample" / "cpg0021_sample.zarr")
+    print(f"cpg0021_sample.zarr:    {len(cpg_periscope._elements)} elements")
+    print(cpg_periscope)
+
+    biohub = sd.read_zarr(OPS_DIR / "biohub_example" / "biohub_example.zarr")
     print(f"biohub_example.zarr:    {len(biohub._elements)} elements")
     print(biohub)
 

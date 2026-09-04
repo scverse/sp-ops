@@ -34,6 +34,9 @@ convert = [
     "shapely",
     "tifffile",
     "scikit-image",
+    # cpg0021_sample ships Nikon ND2 straight off the microscope. Also what
+    # check_sp_ops_zarr.py --nd2 imports to compare pixels against the source.
+    "nd2",
 ]
 docs = [
     "sphinx>=8.1",

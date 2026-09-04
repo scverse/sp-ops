@@ -3,6 +3,7 @@ r"""Build an sp-ops conformant OME-Zarr store from one of the example datasets.
 
     python zarr_store_converters/build_store.py biohub_example
     python zarr_store_converters/build_store.py experimentC_scallops
+    python zarr_store_converters/build_store.py cpg0021_sample
     python zarr_store_converters/build_store.py biohub_example --out /tmp/x.zarr --levels 3
 
 Paths are relative to the repository root. Each store lands in its own folder
@@ -11,8 +12,8 @@ under ../stores, with the build log beside it. Verify one with:
     python zarr_store_converters/check_sp_ops_zarr.py \
         ../stores/<name>/<name>.zarr --<flag> <source>
 
-`experimentC` and `cpg0021_sample` are not ported to this entry point yet; they
-still have their own build_*_zarr.py scripts.
+`experimentC` is not ported to this entry point yet; it still has its own
+build_experimentC_zarr.py script.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from spops.datasets.biohub import BiohubConverter
+from spops.datasets.cpg0021 import Cpg0021Converter
 from spops.datasets.scallops import ScallopsConverter
 
 HERE = Path(__file__).resolve().parent
@@ -34,6 +36,7 @@ STORES = HERE / ".." / ".." / "stores"
 # dataset name -> converter, and the source roots its `load` expects
 REGISTRY = {
     "biohub_example": (BiohubConverter, {"dataset": "biohub_example"}),
+    "cpg0021_sample": (Cpg0021Converter, {"dataset": "cpg0021_sample"}),
     "experimentC_scallops": (ScallopsConverter, {"scallops": "experimentC_scallops",
                                                  "raw": "experimentC_raw"}),
 }

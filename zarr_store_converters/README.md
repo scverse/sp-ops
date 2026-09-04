@@ -12,6 +12,16 @@ python zarr_store_converters/check_sp_ops_zarr.py \
     ../stores/biohub_example/biohub_example.zarr --zarr ../datasets/biohub_example
 ```
 
+`cpg0021_sample` needs its ND2 root rather than the dataset root, because that
+is where `--nd2` expects the acquisition directories:
+
+```bash
+python zarr_store_converters/build_store.py cpg0021_sample
+python zarr_store_converters/check_sp_ops_zarr.py \
+    ../stores/cpg0021_sample/cpg0021_sample.zarr --nd2 \
+    ../datasets/cpg0021_sample/cpg0021-periscope/broad/images/20200805_A549_WG_Screen/images/CP186A
+```
+
 Dependencies live in the `convert` group: `uv sync --group convert`. Note that
 `uv sync` makes the environment match exactly the groups you name, so to keep
 the docs build too, ask for both: `uv sync --group convert --group docs`.
@@ -55,14 +65,18 @@ move and every element writer requires a `LocalStore`.
 ## Expected checker output
 
 These counts are the regression gate. A change that alters them is a change to
-the store, not a refactor. The figures in `docs/open-questions.md` are from an
-older build of both stores; the ones below were measured on 2026-09-04 against
-the stores in `../stores`.
+the store, not a refactor. All three rows were measured on 2026-09-04 by
+rebuilding each store from this package and running the checker on the result,
+and they agree with `docs/open-questions.md`. The 340 and 422 this table
+carried before that were stale: the stores they describe check at 361 and 435
+today, unchanged and unrebuilt, so the figures were wrong rather than the
+stores.
 
 | Store | Checks | Failed | Advisories |
 | --- | --- | --- | --- |
-| `experimentC_scallops` | 340 | 4, the empty `intermediate` tile collections of Q33 | 0 |
-| `biohub_example` | 422 | 0 | 2, the empty `sp-ops:merged.source` of Q19 |
+| `experimentC_scallops` | 361 | 4, the empty `intermediate` tile collections of Q33 | 1, the reads-to-library edge of Q15 |
+| `biohub_example` | 435 | 0 | 2, the empty `sp-ops:merged.source` of Q19 |
+| `cpg0021_sample` | 27036 | 0 | 0 |
 
 `check_sp_ops_zarr.py` never reads `multiscales`, so adding that block moved
 none of these numbers.
@@ -73,12 +87,23 @@ per-tile product, so its tile collections are empty. Do not "fix" them.
 `check_sp_ops_zarr.py` exits non-zero when anything fails, so scallops exits 1 by
 design. Assert the printed line, not the exit code.
 
+`cpg0021_sample` is the only store whose numbers move between builds. Its tile
+positions are measured from the pixels rather than read from the delivery's
+position list, so a change to `spops/datasets/cpg0021_geometry.py` changes the
+transforms. The check count does not depend on them: the layout and the
+transforms are derived from the same solve, so they agree whatever it returns.
+
+## The raw loop
+
+`ScreenConverter.raw_tiles` walks tile -> [round ->] channel for a `raw` plate
+and takes a `read(tile, round)` callback for the pixels. It was held back until
+there was more than one dataset to generalise from; `cpg0021_sample` is the
+first caller and `experimentC` is shaped to be the second, so keep the seam
+where it is -- a delivery varies in its file format, not in the shape below the
+tile, which `docs/layout.md` fixes.
+
 ## Not yet ported
 
-`build_experimentC_zarr.py` and `build_cpg0021_zarr.py` still stand alone and take
-`DATASET_DIR OUT.zarr`. Porting them needs two things this base class does not
-have yet, deliberately: the `raw` tile -> round -> channel loop, and the
-cross-correlation geometry solver that only `cpg0021_sample` uses. Both should be
-added when there are two real callers to generalise from. They also write
-`sp-ops:layout_id`, which is not in the `docs/extension.md` registry and nothing
-reads; drop it on the way through.
+`build_experimentC_zarr.py` still stands alone and takes `DATASET_DIR OUT.zarr`.
+It writes `sp-ops:layout_id`, which is not in the `docs/extension.md` registry
+and nothing reads; drop it on the way through.
